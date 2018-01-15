@@ -12,6 +12,7 @@ from tqdm import tqdm
 #Format video - Convert to H.264 and trim
 def format_video(input_video_file, output_video_file, start_time, duration):
 	cmdstring = "ffmpeg -loglevel panic -i {0} -ss 00:00:{1} -t 00:00:{2} {3}".format(input_video_file, start_time, duration, output_video_file)
+	print(cmdstring)
 	os.system(cmdstring)
 
 def multi_run_wrapper(args):
@@ -35,7 +36,7 @@ def download_video_method(line,csv_file):
 	if not os.path.exists(segmented_folder):
 		os.makedirs(segmented_folder)
 	
-	path_to_segmented_video = segmented_folder + "/Y" + query_id + '_' + start_seconds + '_' + end_seconds +  ".h264"	
+	path_to_segmented_video = segmented_folder + "/Y" + query_id + '_' + start_seconds + '_' + end_seconds +  ".mp4"	
 
 	if not os.path.isfile(path_to_segmented_video):
 		try:

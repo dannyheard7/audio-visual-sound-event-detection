@@ -9,9 +9,16 @@ with open('evaluation_set.csv', 'w') as out, open('groundtruth_strong_label_eval
         k = split_dot.rfind("_")
         video_id = split_dot[:k]
 
-        audio_file_name_split = audio_file_name.split("_")
 
-        start_time =  audio_file_name_split[1]
-        k =  audio_file_name_split[2].rfind(".wav")
-        end_time = audio_file_name_split[2][:k]
-        print(video_id + ',' + start_time + ',' + end_time, file=out)
+        wav_pos =  audio_file_name.rfind(".wav")
+        last_underscore = audio_file_name.rfind("_") 
+        end_time = audio_file_name[(last_underscore + 1):wav_pos].rstrip()
+
+        audio_file_name_split = audio_file_name[:last_underscore]
+        second_last_underscore = audio_file_name_split.rfind("_")
+
+        start_time =  audio_file_name_split[(second_last_underscore + 1):last_underscore]
+
+        classes = row[-1]
+        
+        print(video_id + ',' + start_time + ',' + end_time + ',' + classes, file=out)
