@@ -7,9 +7,9 @@ audio_file_extension = ".wav"
 
 
 video_data_location = "/fastdata/aca14dh/DCASE-video-data/"
-video_training_data_location = video_data_location + "training/"
-video_testing_data_location = video_data_location + "testing/"
-video_evaluation_data_location = video_data_location + "testing/"
+video_training_data_location = video_data_location + "training_set/"
+video_testing_data_location = video_data_location + "testing_set/"
+video_evaluation_data_location = video_data_location + "evaluation_set/"
 video_file_extension = ".mp4"
 
 video_training_frames_location = video_data_location + "frames/training/"
