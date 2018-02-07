@@ -77,18 +77,24 @@ def take_frame_from_end(video_info, video_filename, video_location, output_folde
 	os.system(ffmpeg_string)
 
 
-def take_n_equal_spaced_frames(num_frames, video_info video_filename, video_location, output_folder):
-	video_filename = os.path.join(video_location, video_filename)
-
+def take_n_equal_spaced_frames(num_frames, video_info, video_filename, video_location, output_folder):
 	filename = os.path.splitext(video_filename)[0] + "_spaced_%d" + config.video_frames_extension
 	frame_filename = os.path.join(output_folder, filename)
 	print(frame_filename)
 
+	video_filename = os.path.join(video_location, video_filename)
+
 	video_length = float(video_info[2]) - float(video_info[1])
 
-	fps = 
+	fps = num_frames / video_length
 
-	ffmpeg_string = "ffmpeg -i {} -vf fps=1 {}".format(video_filename, frame_filename)
+	ffmpeg_string = "ffmpeg -i {} -vf fps={} {}".format(video_filename, fps, frame_filename)
+	os.system(ffmpeg_string)
+
+
+def take_frame_each_scene(video_info, video_filename, video_location, output_folder):
+	pass
+
 
 def create_and_populate_csv():
 	pass
@@ -107,7 +113,4 @@ for class_label, class_name in class_labels.items():
 
 	for video_info in videos_by_classes[class_label]:
 		video_filename = get_video_filename(video_info, config.video_file_extension)
-		take_n_equal_spaced_frames(1, video_info, video_filename,  config.video_training_data_location, output_folder)
-
-
-#os.system('ffmpeg -i input.flv -ss 00:00:14.435 -vframes 1 out.png')
+		take_n_equal_spaced_frames(5, video_info, video_filename,  config.video_training_data_location, output_folder)
