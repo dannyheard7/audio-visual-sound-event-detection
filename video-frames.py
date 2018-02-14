@@ -6,25 +6,34 @@ import config
 from meta import load_sound_event_classes, load_videos_info
 from FileIO import get_video_filename, get_frame_filename, get_class_directory
 
+from keras.applications.inception_v3 import InceptionV3
+from keras.preprocessing import image
+from keras.applications.inception_v3 import preprocess_input, decode_predictions
+import numpy as np
+
 
 def take_frame_from_start(video_info, video_path, output_folder):
-	frame_filename = os.path.join(output_folder, create_frame_filename(video_path, "start"))
+	frame_filename = os.path.join(output_folder, get_frame_filename(video_path, "start", config.video_frames_extension))
 
 	ffmpeg_string = "ffmpeg -i {}  -ss 00:00:00.1 -vframes 1 {}".format(video_path, frame_filename)
 	os.system(ffmpeg_string)
 
+	return frame_filename
+
 
 def take_frame_from_middle(video_info, video_path, output_folder):
-	frame_filename = os.path.join(output_folder, create_frame_filename(video_path, "middle"))
+	frame_filename = os.path.join(output_folder, get_frame_filename(video_path, "middle",  config.video_frames_extension))
 
 	middle_location = str((float(video_info[2]) - float(video_info[1])) / 2)
 	
 	ffmpeg_string = "ffmpeg -i {}  -ss 00:00:0{} -vframes 1 {}".format(video_path, middle_location, frame_filename)
 	os.system(ffmpeg_string)
 
+	return frame_filename
+
 
 def take_frame_from_end(video_info, video_path, output_folder):
-	frame_filename = os.path.join(output_folder, create_frame_filename(video_path, "end"))
+	frame_filename = os.path.join(output_folder, get_frame_filename(video_path, "end",  config.video_frames_extension))
 
 	end_location = str((float(video_info[2]) - float(video_info[1])))
 
@@ -33,6 +42,8 @@ def take_frame_from_end(video_info, video_path, output_folder):
 	
 	ffmpeg_string = "ffmpeg -i {}  -ss 00:00:{} -vframes 1 {}".format(video_path, end_location, frame_filename)
 	os.system(ffmpeg_string)
+
+	return frame_filename
 
 
 def take_n_equal_spaced_frames(num_frames, video_info, video_path, output_folder):
@@ -45,17 +56,34 @@ def take_n_equal_spaced_frames(num_frames, video_info, video_path, output_folder
 	ffmpeg_string = "ffmpeg -i {} -vf fps={} {}".format(video_path, fps, frame_filename)
 	os.system(ffmpeg_string)
 
+	return frame_filename # Going to have to handle this differently because of the %d
+
 
 def take_frame_each_scene(video_info, video_filename, video_location, output_folder):
 	pass
 
 
-def create_and_populate_csv():
-	pass
+def load_model():
+	model = InceptionV3(weights='imagenet')
+	return model
+
+
+def test_frame(model, path):
+	img = image.load_img(path, target_size=(224, 224))
+	x = image.img_to_array(img)
+	x = np.expand_dims(x, axis=0)
+	x = preprocess_input(x)
+
+	preds = model.predict(x)
+	# decode the results into a list of tuples (class, description, probability)
+	# (one such list for each sample in the batch)
+	print('Predicted:', decode_predictions(preds, top=3)[0])
+
 
 
 class_labels = load_sound_event_classes()
 videos_by_classes = load_videos_info(config.video_training_data_location, config.training_data_csv_file)
+model = load_model()
 
 
 for class_label, class_name in class_labels.items():
@@ -67,4 +95,9 @@ for class_label, class_name in class_labels.items():
 	for video_info in videos_by_classes[class_label]:
 		video_filename = get_video_filename(video_info[0], video_info[1], video_info[2], config.video_file_extension)
 		video_path = os.path.join(config.video_training_data_location, video_filename)
-		take_n_equal_spaced_frames(5, video_info, video_path, output_folder)
+
+		if os.path.exists(video_path):
+			frame_filename = take_frame_from_start(video_info, video_path, output_folder)
+		
+			test_frame(model, frame_filename)
+			os.remove(frame_filename)
