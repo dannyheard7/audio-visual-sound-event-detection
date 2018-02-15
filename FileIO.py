@@ -26,6 +26,15 @@ def load_csv_as_list(filename):
         return csv_list
 
 
+def write_list_to_csv(filepath, list_to_write):
+	with open(filepath,'wt') as csvfile:
+		writer = csv.writer(csvfile)
+
+		for item in list_to_write:
+			writer.writerow(item)
+
+
+
 def extract_evaluation_video_ids():
 	with open('evaluation_set.csv', 'w') as out, open('metadata/groundtruth_strong_label_evaluation_set.csv', 'r') as in_file:
 	    for row in csv.reader(in_file):

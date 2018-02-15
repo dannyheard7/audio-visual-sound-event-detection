@@ -4,7 +4,7 @@ import numpy as np
 
 import config
 from meta import load_sound_event_classes, load_videos_info
-from FileIO import get_video_filename, get_frame_filename, get_class_directory
+from FileIO import get_video_filename, get_frame_filename, get_class_directory, write_list_to_csv
 
 from keras.applications.inception_v3 import InceptionV3
 from keras.preprocessing import image
@@ -83,8 +83,10 @@ def test_frame(model, path):
 
 class_labels = load_sound_event_classes()
 videos_by_classes = load_videos_info(config.video_training_data_location, config.training_data_csv_file)
-model = load_model()
+#model = load_model()
 
+
+videos_with_errors = list()
 
 for class_label, class_name in class_labels.items():
 	output_folder = get_class_directory(config.video_training_frames_location, class_name)
@@ -98,6 +100,12 @@ for class_label, class_name in class_labels.items():
 
 		if os.path.exists(video_path):
 			frame_filename = take_frame_from_start(video_info, video_path, output_folder)
-		
-			test_frame(model, frame_filename)
-			os.remove(frame_filename)
+
+			if os.path.exists(frame_filename):
+				#test_frame(model, frame_filename)
+				os.remove(frame_filename)
+			else:
+				videos_with_errors.append(video_info)
+
+print(len(videos_with_errors))
+write_list_to_csv("training-videos-with-errors.csv", videos_with_errors)
