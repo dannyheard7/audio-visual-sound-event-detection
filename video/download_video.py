@@ -26,9 +26,7 @@ def download_video_method(line,csv_file):
 	video_duration = float(end_seconds) - float(start_seconds)
 	#positive_labels = ','.join(line.split(",")[3:]);
 	print("Query -> " + query_id)
-	#print "start_time -> " + start_seconds
-	#print "end_time -> " + end_seconds
-	#print "positive_labels -> " + positive_labels
+	
 	url = "https://www.youtube.com/watch?v=" + query_id
 
 	segmented_folder = sys.argv[1].split('.csv')[0].split("/")[-1] + "_" + csv_file.split('.csv')[0] +  "_" + "video_formatted_and_segmented_downloads"
@@ -36,7 +34,9 @@ def download_video_method(line,csv_file):
 	if not os.path.exists(segmented_folder):
 		os.makedirs(segmented_folder)
 	
-	path_to_segmented_video = segmented_folder + "/Y" + query_id + '_' + start_seconds + '_' + end_seconds +  ".mp4"	
+	path_to_segmented_video = segmented_folder + "/Y" + query_id + '_' + start_seconds + '_' + end_seconds.rstrip() +  ".mp4"	
+
+	print(path_to_segmented_video)
 
 	if not os.path.isfile(path_to_segmented_video):
 		try:
