@@ -36,8 +36,6 @@ def download_video_method(line,csv_file):
 	
 	path_to_segmented_video = segmented_folder + "/Y" + query_id + '_' + start_seconds + '_' + end_seconds.rstrip() +  ".mp4"	
 
-	print(path_to_segmented_video)
-
 	if not os.path.isfile(path_to_segmented_video):
 		try:
 			video = pafy.new(url)

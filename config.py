@@ -13,8 +13,11 @@ video_evaluation_data_location = video_data_location + "evaluation_set/"
 video_file_extension = ".mp4"
 
 video_training_frames_location = video_data_location + "frames/training/"
+video_testing_frames_location = video_data_location + "frames/testing/"
+video_evaluation_frames_location = video_data_location + "frames/evaluation/"
 video_frames_extension = ".png"
 
 training_data_csv_file = "metadata/training_set.csv"
 testing_data_csv_file = "metadata/testing_set.csv"
+evaluation_data_csv_file = "metadata/evaluation_set.csv"
 
