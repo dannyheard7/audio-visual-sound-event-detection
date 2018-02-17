@@ -1,4 +1,3 @@
-
 audio_data_location = "/fastdata/aca14dh/DCASE-audio-data/"
 audio_training_data_location = audio_data_location + "training/"
 audio_testing_data_location = audio_data_location + "testing/"

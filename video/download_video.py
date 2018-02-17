@@ -34,7 +34,7 @@ def download_video_method(line,csv_file):
 	if not os.path.exists(segmented_folder):
 		os.makedirs(segmented_folder)
 	
-	path_to_segmented_video = segmented_folder + "/Y" + query_id + '_' + start_seconds + '_' + end_seconds.rstrip() +  ".mp4"	
+	path_to_segmented_video = segmented_folder + "/Y" + query_id.rstrip() + '_' + start_seconds.rstrip() + '_' + end_seconds.rstrip() +  ".mp4"	
 
 	if not os.path.isfile(path_to_segmented_video):
 		try:
@@ -66,36 +66,26 @@ def download_video_method(line,csv_file):
 #Download video - Reads 3 lines of input csv file at a time and passes them to multi_run wrapper which calls download_video_method to download the file based on id.
 #Multiprocessing module spawns 3 process in parallel which runs download_video_method. Multiprocessing, thus allows downloading process to happen in 40 percent of the time approximately to downloading sequentially - processing line by line of input csv file. 
 def download_video(csv_file, timestamp):	
-	error_log = 'error' + timestamp + '.log'
+	print(multiprocessing.cpu_count())
+
+	segments_info = []
 	
 	with open(csv_file, "r") as segments_info_file:	
-		with open(error_log, "a") as fo:
-			
-			for line in tqdm(segments_info_file):
-				cpu_count = multiprocessing.cpu_count()
-				lines_list = []
-				line = (line, csv_file)
-				lines_list.append(line)
+		for line in segments_info_file:
+			segments_info.append((line, csv_file))
 
-				for cpu in range(0, cpu_count - 2):
-					try:
-						next_line = segments_info_file.next()
-						next_line = (next_line, csv_file)
-						lines_list.append(next_line)
-					except:
-						print ("end of file")
-				
-				#print lines_list
-				P = multiprocessing.Pool(processes=cpu_count)
-				exception = P.map(multi_run_wrapper, lines_list)
-				
-				for item in exception:
-					if item:
-						line = fo.writelines(str(item) +  '\n')
+	cpu_count = multiprocessing.cpu_count()
+	line_num = 0	
 
-				P.close()
-				P.join()
-		fo.close()
+	P = multiprocessing.Pool(processes=cpu_count)
+	exception = P.map(multi_run_wrapper, segments_info)
+
+	for item in exception:
+		if item:
+			print(str(item))
+
+	P.close()
+	P.join()
 
 if __name__ == "__main__":
 	if len(sys.argv) !=2:

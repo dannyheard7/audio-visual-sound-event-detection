@@ -1,4 +1,3 @@
-
 import numpy as np
 import sys
 import soundfile
@@ -96,6 +95,8 @@ def extract_features(wav_dir, out_dir, recompute):
                 x = np.dot(x, melW.T)
                 x = np.log(x + 1e-8)
                 x = x.astype(np.float32)
+
+                # Here need to add visual features
                 
                 # Dump to pickle
                 pickle.dump(x, open(out_path, 'wb'), 

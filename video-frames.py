@@ -1,4 +1,3 @@
-# For each class extract frames from some videos. Test against imagenet systems
 import os
 import numpy as np
 import argparse
@@ -56,7 +55,12 @@ def take_n_equal_spaced_frames(num_frames, video_info, video_path, output_folder
     ffmpeg_string = "ffmpeg -i {} -vf fps={} {}".format(video_path, fps, frame_filename)
     os.system(ffmpeg_string)
 
-    return frame_filename # Going to have to handle this differently because of the %d
+    filenames = []
+
+    for i in range(0, num_frames - 1):
+        frame_filename.append(frame_filename % i)
+
+    return filenames
 
 
 def take_frame_each_scene(video_info, video_filename, video_location, output_folder):
@@ -68,17 +72,16 @@ def load_model():
     return model
 
 
-def test_frame(model, path):
+def classify_frame_with_model(model, path):
     img = image.load_img(path, target_size=(224, 224))
     x = image.img_to_array(img)
     x = np.expand_dims(x, axis=0)
     x = preprocess_input(x)
 
     preds = model.predict(x)
+    print(preds)
     # decode the results into a list of tuples (class, description, probability)
-    # (one such list for each sample in the batch)
     print('Predicted:', decode_predictions(preds, top=3)[0])
-
 
 
 def get_video_frames(videos_location, frames_location, data_csv_file):
@@ -103,6 +106,7 @@ def get_video_frames(videos_location, frames_location, data_csv_file):
 
                 if os.path.exists(frame_filename):
                     #test_frame(model, frame_filename)
+                    # TODO: Save features here
                     os.remove(frame_filename)
                 else:
                     videos_with_errors.append(video_info)
