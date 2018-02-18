@@ -1,14 +1,13 @@
 import os
 import numpy as np
 import argparse
-import numpy as np
-from keras.applications.inception_v3 import InceptionV3
+import numpy as np 
 from keras.preprocessing import image
-from keras.applications.inception_v3 import preprocess_input, decode_predictions
+from keras.applications.inception_v3 import InceptionV3, preprocess_input, decode_predictions
 
 import config
 from meta import load_sound_event_classes, load_videos_info
-from FileIO import get_video_filename, get_frame_filename, get_class_directory, write_list_to_csv
+from FileIO import get_video_filename, get_frame_filename, write_list_to_csv
 
 
 def take_frame_from_start(video_info, video_path, output_folder):
@@ -67,13 +66,8 @@ def take_frame_each_scene(video_info, video_filename, video_location, output_fol
     pass
 
 
-def load_model():
-    model = InceptionV3(weights='imagenet')
-    return model
-
-
-def classify_frame_with_model(model, path):
-    img = image.load_img(path, target_size=(224, 224))
+def extract_image_features(model, image_path, features_output_path):
+    img = image.load_img(image_path, target_size=(224, 224))
     x = image.img_to_array(img)
     x = np.expand_dims(x, axis=0)
     x = preprocess_input(x)
@@ -83,20 +77,20 @@ def classify_frame_with_model(model, path):
     # decode the results into a list of tuples (class, description, probability)
     print('Predicted:', decode_predictions(preds, top=3)[0])
 
+    pickle.dump(preds, open(features_output_path, 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
 
-def get_video_frames(videos_location, frames_location, data_csv_file):
+
+def get_video_frames(videos_location, output_folder, data_csv_file):
     class_labels = load_sound_event_classes()
     videos_by_classes = load_videos_info(videos_location, data_csv_file)
-    #model = load_model()
+    model = InceptionV3(weights='imagenet')
 
     videos_with_errors = list()
 
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
     for class_label, class_name in class_labels.items():
-        output_folder = get_class_directory(frames_location, class_name)
-
-        if not os.path.exists(output_folder):
-            os.makedirs(output_folder)
-
         for video_info in videos_by_classes[class_label]:
             video_filename = get_video_filename(video_info[0], video_info[1], video_info[2], config.video_file_extension)
             video_path = os.path.join(videos_location, video_filename)
@@ -105,8 +99,9 @@ def get_video_frames(videos_location, frames_location, data_csv_file):
                 frame_filename = take_frame_from_start(video_info, video_path, output_folder)
 
                 if os.path.exists(frame_filename):
-                    #test_frame(model, frame_filename)
-                    # TODO: Save features here
+                    features_output_path = os.path.join(output_folder, "features/", os.path.splitext(video_filename)[0]) + ".pkl"
+                    print(features_output_path)
+                    extract_image_features(model, frame_filename, features_output_path)
                     os.remove(frame_filename)
                 else:
                     videos_with_errors.append(video_info)

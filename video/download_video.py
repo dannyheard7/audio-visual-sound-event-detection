@@ -63,8 +63,7 @@ def download_video_method(line,csv_file):
 			print ("Error is ---> " + str(ex))
 		return ex1
 
-#Download video - Reads 3 lines of input csv file at a time and passes them to multi_run wrapper which calls download_video_method to download the file based on id.
-#Multiprocessing module spawns 3 process in parallel which runs download_video_method. Multiprocessing, thus allows downloading process to happen in 40 percent of the time approximately to downloading sequentially - processing line by line of input csv file. 
+
 def download_video(csv_file, timestamp):	
 	print(multiprocessing.cpu_count())
 
@@ -74,8 +73,7 @@ def download_video(csv_file, timestamp):
 		for line in segments_info_file:
 			segments_info.append((line, csv_file))
 
-	cpu_count = multiprocessing.cpu_count()
-	line_num = 0	
+	cpu_count = multiprocessing.cpu_count()	
 
 	P = multiprocessing.Pool(processes=cpu_count)
 	exception = P.map(multi_run_wrapper, segments_info)
