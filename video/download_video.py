@@ -19,6 +19,7 @@ def multi_run_wrapper(args):
 
 #Method to download video - Downloads the best video available for video id, calls the formatting & segmenting video function based on start and end time. 
 def download_video_method(line,csv_file):
+	print(csv_file)
 	query_id = line.split(",")[0];
 	start_seconds = line.split(",")[1];
 	end_seconds = line.split(",")[2];

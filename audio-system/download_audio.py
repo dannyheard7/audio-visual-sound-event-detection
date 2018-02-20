@@ -35,6 +35,7 @@ def multi_run_wrapper(args):
 
 #Method to download audio - Downloads the best audio available for audio id, calls the formatting audio function and then segments the audio formatted based on start and end time. 
 def download_audio_method(line,csv_file):
+	print(csv_file)
 	query_id = line.split(",")[0];
 	start_seconds = line.split(",")[1];
 	end_seconds = line.split(",")[2];
