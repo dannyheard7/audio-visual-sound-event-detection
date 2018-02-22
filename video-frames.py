@@ -2,16 +2,17 @@ import os
 import numpy as np
 import argparse
 import numpy as np 
+import pickle
 from keras.preprocessing import image
 from keras.applications.inception_v3 import InceptionV3, preprocess_input, decode_predictions
 
 import config
 from meta import load_sound_event_classes, load_videos_info
-from FileIO import get_video_filename, get_frame_filename, write_list_to_csv
+import FileIO
 
 
 def take_frame_from_start(video_info, video_path, output_folder):
-    frame_filename = os.path.join(output_folder, get_frame_filename(video_path, "start", config.video_frames_extension))
+    frame_filename = os.path.join(output_folder, FileIO.get_frame_filename(video_path, "start", config.video_frames_extension))
 
     ffmpeg_string = "ffmpeg -i {}  -ss 00:00:00.1 -vframes 1 {}".format(video_path, frame_filename)
     os.system(ffmpeg_string)
@@ -20,7 +21,7 @@ def take_frame_from_start(video_info, video_path, output_folder):
 
 
 def take_frame_from_middle(video_info, video_path, output_folder):
-    frame_filename = os.path.join(output_folder, get_frame_filename(video_path, "middle",  config.video_frames_extension))
+    frame_filename = os.path.join(output_folder, FileIO.get_frame_filename(video_path, "middle",  config.video_frames_extension))
 
     middle_location = str((float(video_info[2]) - float(video_info[1])) / 2)
     
@@ -31,7 +32,7 @@ def take_frame_from_middle(video_info, video_path, output_folder):
 
 
 def take_frame_from_end(video_info, video_path, output_folder):
-    frame_filename = os.path.join(output_folder, get_frame_filename(video_path, "end",  config.video_frames_extension))
+    frame_filename = os.path.join(output_folder, FileIO.get_frame_filename(video_path, "end",  config.video_frames_extension))
 
     end_location = str((float(video_info[2]) - float(video_info[1])))
 
@@ -81,33 +82,33 @@ def extract_image_features(model, image_path, features_output_path):
 
 
 def get_video_frames(videos_location, output_folder, data_csv_file):
+    FileIO.create_folder(output_folder)
+    
+    features_output_path = os.path.join(output_folder, "features/")
+    FileIO.create_folder(features_output_path)
+
     class_labels = load_sound_event_classes()
     videos_by_classes = load_videos_info(videos_location, data_csv_file)
     model = InceptionV3(weights='imagenet')
 
     videos_with_errors = list()
 
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-
-    for class_label, class_name in class_labels.items():
+    for class_label, _ in class_labels.items():
         for video_info in videos_by_classes[class_label]:
-            video_filename = get_video_filename(video_info[0], video_info[1], video_info[2], config.video_file_extension)
+            video_filename = FileIO.get_video_filename(video_info[0], video_info[1], video_info[2], config.video_file_extension)
             video_path = os.path.join(videos_location, video_filename)
 
             if os.path.exists(video_path):
                 frame_filename = take_frame_from_start(video_info, video_path, output_folder)
 
                 if os.path.exists(frame_filename):
-                    features_output_path = os.path.join(output_folder, "features/", os.path.splitext(video_filename)[0]) + ".pkl"
-                    print(features_output_path)
-                    extract_image_features(model, frame_filename, features_output_path)
+                    frame_features_path = os.path.join(features_output_path, os.path.splitext(video_filename)[0]) + ".pkl"
+                    extract_image_features(model, frame_filename, frame_features_path)
                     os.remove(frame_filename)
                 else:
                     videos_with_errors.append(video_info)
 
-    print(len(videos_with_errors))
-    write_list_to_csv(os.path.splitext(os.path.basename(data_csv_file))[0] + "-with-errors.csv", videos_with_errors)
+    FileIO.write_list_to_csv(os.path.splitext(os.path.basename(data_csv_file))[0] + "-with-errors.csv", videos_with_errors)
 
 
 if __name__ == "__main__":
