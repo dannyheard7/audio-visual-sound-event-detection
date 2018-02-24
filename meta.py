@@ -11,7 +11,7 @@ def load_sound_event_classes():
 	return class_labels
 	
 
-def load_videos_info(videos_location, csv_file):
+def load_videos_info_by_class(csv_file):
 	data_set = FileIO.load_csv_as_list(csv_file)
 	videos_dict =  defaultdict(list)
 
@@ -23,6 +23,5 @@ def load_videos_info(videos_location, csv_file):
 				videos_dict[x].append(row[0:3])
 		else:
 			videos_dict[video_class_id].append(row[0:3])
-
 
 	return videos_dict

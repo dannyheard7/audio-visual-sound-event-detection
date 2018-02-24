@@ -7,7 +7,7 @@ from keras.preprocessing import image
 from keras.applications.inception_v3 import InceptionV3, preprocess_input, decode_predictions
 
 import config
-from meta import load_sound_event_classes, load_videos_info
+import meta
 import FileIO
 
 
@@ -74,10 +74,11 @@ def extract_image_features(model, image_path, features_output_path):
     x = preprocess_input(x)
 
     preds = model.predict(x)
-    print(preds)
+    print(np.shape(preds))
     # decode the results into a list of tuples (class, description, probability)
-    print('Predicted:', decode_predictions(preds, top=3)[0])
+    # print('Predicted:', decode_predictions(preds, top=3)[0])
 
+    # Do i need to do PCA?
     pickle.dump(preds, open(features_output_path, 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
 
 
@@ -87,28 +88,20 @@ def get_video_frames(videos_location, output_folder, data_csv_file):
     features_output_path = os.path.join(output_folder, "features/")
     FileIO.create_folder(features_output_path)
 
-    class_labels = load_sound_event_classes()
-    videos_by_classes = load_videos_info(videos_location, data_csv_file)
+    videos_info = FileIO.load_csv_as_list(data_csv_file)
     model = InceptionV3(weights='imagenet')
 
-    videos_with_errors = list()
+    for video_info in videos_info:
+        video_filename = FileIO.get_video_filename(video_info[0], video_info[1], video_info[2], config.video_file_extension)
+        video_path = os.path.join(videos_location, video_filename)
+        frame_features_path = os.path.join(features_output_path, os.path.splitext(video_filename)[0]) + ".pkl"
 
-    for class_label, _ in class_labels.items():
-        for video_info in videos_by_classes[class_label]:
-            video_filename = FileIO.get_video_filename(video_info[0], video_info[1], video_info[2], config.video_file_extension)
-            video_path = os.path.join(videos_location, video_filename)
+        if os.path.exists(video_path) and not os.path.exists(frame_features_path):
+            frame_filename = take_frame_from_start(video_info, video_path, output_folder)
 
-            if os.path.exists(video_path):
-                frame_filename = take_frame_from_start(video_info, video_path, output_folder)
-
-                if os.path.exists(frame_filename):
-                    frame_features_path = os.path.join(features_output_path, os.path.splitext(video_filename)[0]) + ".pkl"
-                    extract_image_features(model, frame_filename, frame_features_path)
-                    os.remove(frame_filename)
-                else:
-                    videos_with_errors.append(video_info)
-
-    FileIO.write_list_to_csv(os.path.splitext(os.path.basename(data_csv_file))[0] + "-with-errors.csv", videos_with_errors)
+            if os.path.exists(frame_filename):
+                extract_image_features(model, frame_filename, frame_features_path)
+                os.remove(frame_filename)
 
 
 if __name__ == "__main__":

@@ -70,7 +70,7 @@ def extract_features(wav_dir, out_dir, recompute):
     t1 = time.time()
     for na in names:
         wav_path = wav_dir + '/' + na
-        out_path = out_dir + '/' + os.path.splitext(na)[0] + '.p'
+        out_path = out_dir + '/' + os.path.splitext(na)[0] + '.pkl'
         
         # Skip features already computed
         if recompute or (not os.path.isfile(out_path)):
@@ -105,7 +105,7 @@ def extract_features(wav_dir, out_dir, recompute):
     print("Extracting feature time: %s" % (time.time() - t1,))
 
 ### Pack features of hdf5 file
-def pack_features_to_hdf5(fe_dir, csv_path, out_path):
+def pack_features_to_hdf5(audio_feature_dir, video_feature_dir, csv_path, out_path):
     """Pack extracted features to a single hdf5 file. 
     
     This hdf5 file can speed up loading the features. This hdf5 file has 
@@ -115,7 +115,7 @@ def pack_features_to_hdf5(fe_dir, csv_path, out_path):
        y: float32 array, (n_clips, n_time, n_freq)
        
     Args: 
-      fe_dir: string, directory of features. 
+      audio_feature_dir: string, directory of features.
       csv_path: string | "", path of csv file. E.g. "testing_set.csv". If the 
           string is empty, then pack features with all labels False. 
       out_path: string, path to write out the created hdf5 file. 
@@ -133,36 +133,44 @@ def pack_features_to_hdf5(fe_dir, csv_path, out_path):
         with open(csv_path, 'rb') as f:
             reader = csv.reader(f)
             lis = list(reader)
-        cnt = 0
+        count = 0
         for li in lis:
-            [na, bgn, fin, lbs, ids] = li
-            if cnt % 100 == 0: print(cnt)
-            na = os.path.splitext(na)[0]
-            bare_na = 'Y' + na + '_' + bgn + '_' + fin # Correspond to the wav name. 
-            fe_na = bare_na + ".p"
-            fe_path = os.path.join(fe_dir, fe_na)
+            [id, start, end, labels, label_ids] = li
+            if count % 100 == 0: print(count)
+            # id = os.path.splitext(id)[0]
+            filename = 'Y' + id + '_' + start + '_' + end # Correspond to the wav name.
+            feature_filename = filename + ".pkl"
+            feature_path = os.path.join(audio_feature_dir, feature_filename)
+
+            video_feature_path = os.path.join(video_feature_dir, feature_filename)
             
-            if not os.path.isfile(fe_path):
-                print("File %s is in the csv file but the feature is not extracted!" % fe_path)
+            if not os.path.isfile(feature_path) or not os.path.isfile(video_feature_path):
+                print("File %s is in the csv file but the feature is not extracted!" % filename)
             else:
-                na_all.append(bare_na[1:] + ".wav") # Remove 'Y' in the begining. 
-                x = pickle.load(open(fe_path, 'rb'))
+                na_all.append(filename[1:] + ".wav") # Remove 'Y' in the begining.
+
+                x_audio = pickle.load(open(feature_path, 'rb'))
+                x_video = pickle.load(open(video_feature_path, 'rb')).repeat(240, 0) # Height needs to be 240 like frequency
+
+                x = np.hstack((x_audio, x_video)) # vstack or hstack
+
+                # What should max length be with video information. Think max length is to do with time
                 x = pad_trunc_seq(x, max_len)
                 x_all.append(x)
-                ids = ids.split(',')
-                y = ids_to_multinomial(ids)
+                label_ids = label_ids.split(',')
+                y = ids_to_multinomial(label_ids)
                 y_all.append(y)
-            cnt += 1
+            count += 1
     else:   # Pack from features without ground truth label (dev. data)
-        names = os.listdir(fe_dir)
+        names = os.listdir(audio_feature_dir)
         names = sorted(names)
-        for fe_na in names:
-            bare_na = os.path.splitext(fe_na)[0]
-            fe_path = os.path.join(fe_dir, fe_na)
-            na_all.append(bare_na + ".wav")
-            x = pickle.load(open(fe_path, 'rb'))
-            x = pad_trunc_seq(x, max_len)
-            x_all.append(x)
+        for feature_filename in names:
+            filename = os.path.splitext(feature_filename)[0]
+            feature_path = os.path.join(audio_feature_dir, feature_filename)
+            na_all.append(filename + ".wav")
+            x_audio = pickle.load(open(feature_path, 'rb'))
+            x_audio = pad_trunc_seq(x_audio, max_len)
+            x_all.append(x_audio)
             y_all.append(None)
         
     x_all = np.array(x_all, dtype=np.float32)
@@ -300,7 +308,8 @@ if __name__ == '__main__':
     parser_ef.add_argument('--recompute', type=bool)
     
     parser_pf = subparsers.add_parser('pack_features')
-    parser_pf.add_argument('--fe_dir', type=str)
+    parser_pf.add_argument('--audio_feature_dir', type=str)
+    parser_pf.add_argument('--video_feature_dir', type=str)
     parser_pf.add_argument('--csv_path', type=str)
     parser_pf.add_argument('--out_path', type=str)
     
@@ -315,8 +324,9 @@ if __name__ == '__main__':
                          out_dir=args.out_dir, 
                          recompute=args.recompute)
     elif args.mode == 'pack_features':
-        pack_features_to_hdf5(fe_dir=args.fe_dir, 
-                              csv_path=args.csv_path, 
+        pack_features_to_hdf5(audio_feature_dir=args.audio_feature_dir,
+                              video_feature_dir=args.video_feature_dir,
+                              csv_path=args.csv_path,
                               out_path=args.out_path)
     elif args.mode == 'calculate_scaler':
         calculate_scaler(hdf5_path=args.hdf5_path, 
