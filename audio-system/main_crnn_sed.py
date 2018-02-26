@@ -13,6 +13,7 @@ import argparse
 import glob
 import time
 import os
+import h5py
 
 import keras
 from keras import backend as K
@@ -68,8 +69,8 @@ def outfunc(vects):
     return out
 
 
-def create_model(num_classes, data):
-    (_, n_time, n_freq) = data.shape    # (N, 240, 64)
+def create_model(num_classes, data_shape):
+    (_, n_time, n_freq) = data_shape   # (N, 240, 64)
     input_logmel = Input(shape=(n_time, n_freq), name='in_layer')   # (N, 240, 64)
     a1 = Reshape((n_time, n_freq, 1))(input_logmel) # (N, 240, 64, 1)
     
@@ -91,8 +92,11 @@ def create_model(num_classes, data):
     
     a1 = Conv2D(256, (3, 3), padding="same", activation="relu", use_bias=True)(a1)
     a1 = MaxPooling2D(pool_size=(1, 4))(a1) # (N, 240, 1, 256)
+
+    print(a1._keras_shape)
     
-    a1 = Reshape((240, 256))(a1) # (N, 240, 256)
+    # a1 = Reshape((240, 256))(a1) # (N, 240, 256)
+    a1 = Reshape((240, 16, 256))(a1)
     
     # Gated BGRU
     rnnout = Bidirectional(GRU(128, activation='linear', return_sequences=True))(a1)
@@ -120,16 +124,22 @@ def train(args):
     num_classes = cfg.num_classes
     
     # Load training & testing data
-    (tr_x, tr_y, tr_na_list) = load_hdf5_data(args.tr_hdf5_path, verbose=1)
-    (te_x, te_y, te_na_list) = load_hdf5_data(args.te_hdf5_path, verbose=1)
-    print("tr_x.shape: %s" % (tr_x.shape,))
+    #(tr_x, tr_y, tr_na_list) = load_hdf5_data(args.tr_hdf5_path, verbose=1)
+    #(te_x, te_y, te_na_list) = load_hdf5_data(args.te_hdf5_path, verbose=1)
+
+    tr_data = h5py.File(args.tr_hdf5_path, 'r+')
+    te_data = h5py.File(args.te_hdf5_path, 'r+')
+
+    tr_shape = tr_data['x'].shape
+
+    print("tr_x.shape: %s" % (tr_shape,))
 
     # Scale data
-    tr_x = do_scale(tr_x, args.scaler_path, verbose=1)
-    te_x = do_scale(te_x, args.scaler_path, verbose=1)
+    tr_data['x'][:64] = do_scale(tr_data['x'][:64], args.scaler_path, verbose=1)
+    tr_data['x'][:64] = do_scale(te_data['x'][:64], args.scaler_path, verbose=1)
     
     # Build model
-    model = create_model(num_classes, tr_x)
+    model = create_model(num_classes, tr_shape)
     
     # Save model callback
     filepath = os.path.join(args.out_model_dir, "gatedAct_rationBal44_lr0.001_normalization_at_cnnRNN_64newMel_240fr.{epoch:02d}-{val_acc:.4f}.hdf5")
@@ -147,12 +157,12 @@ def train(args):
     gen = RatioDataGenerator(batch_size=44, type='train')
 
     # Train
-    model.fit_generator(generator=gen.generate([tr_x], [tr_y]), 
+    model.fit_generator(generator=gen.generate(tr_data), 
                         steps_per_epoch=100,    # 100 iters is called an 'epoch'
                         epochs=31,              # Maximum 'epoch' to train
                         verbose=1, 
                         callbacks=[save_model], 
-                        validation_data=(te_x, te_y))
+                        validation_data=(te_data['x'], te_data['y']))
 
 # Run function in mini-batch to save memory. 
 def run_func(func, x, batch_size):

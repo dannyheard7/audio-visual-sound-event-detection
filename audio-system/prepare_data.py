@@ -130,7 +130,7 @@ def pack_features_to_hdf5(audio_feature_dir, video_feature_dir, csv_path, out_pa
     x_all, y_all, na_all = [], [], []
     
     if csv_path != "":    # Pack from csv file (training & testing from dev. data)
-        with open(csv_path, 'rb') as f:
+        with open(csv_path, 'rt') as f:
             reader = csv.reader(f)
             lis = list(reader)
         count = 0
@@ -265,6 +265,7 @@ def calculate_scaler(hdf5_path, out_path):
     create_folder(os.path.dirname(out_path))
     t1 = time.time()
     (x, y, na_list) = load_hdf5_data(hdf5_path, verbose=1)
+    x = x[:, :64]
     (n_clips, n_time, n_freq) = x.shape
     x2d = x.reshape((n_clips * n_time, n_freq))
     scaler = preprocessing.StandardScaler().fit(x2d)

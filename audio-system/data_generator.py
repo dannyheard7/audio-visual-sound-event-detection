@@ -68,11 +68,10 @@ class RatioDataGenerator(object):
                 lb_list += [idx] * 5
         return lb_list
         
-    def generate(self, xs, ys):
+    def generate(self, xs):
         batch_size = self._batch_size_
-        x = xs[0]
-        y = ys[0]
-        (n_samples, n_labs) = y.shape
+
+        (n_samples, n_labs) = xs['y'].shape
         
         n_samples_list = np.sum(y, axis=0)
         lb_list = self._get_lb_list(n_samples_list)
@@ -84,7 +83,7 @@ class RatioDataGenerator(object):
         
         index_list = []
         for i1 in range(n_labs):
-            index_list.append(np.where(y[:, i1] == 1)[0])
+            index_list.append(np.where(xs['y'][:, i1] == 1)[0])
             
         for i1 in range(n_labs):
             np.random.shuffle(index_list[i1])
@@ -115,8 +114,8 @@ class RatioDataGenerator(object):
                     np.random.shuffle(index_list[i1])
                 
                 per_class_batch_idx = index_list[i1][pointer_list[i1] : min(pointer_list[i1] + n_per_class_list[i1], len_list[i1])]
-                batch_x.append(x[per_class_batch_idx])
-                batch_y.append(y[per_class_batch_idx])
+                batch_x.append(xs['x'][per_class_batch_idx])
+                batch_y.append(xs['y'][per_class_batch_idx])
                 pointer_list[i1] += n_per_class_list[i1]
             batch_x = np.concatenate(batch_x, axis=0)
             batch_y = np.concatenate(batch_y, axis=0)
