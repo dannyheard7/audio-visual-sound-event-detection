@@ -73,7 +73,7 @@ class RatioDataGenerator(object):
 
         (n_samples, n_labs) = xs['y'].shape
         
-        n_samples_list = np.sum(y, axis=0)
+        n_samples_list = np.sum(xs['y'], axis=0)
         lb_list = self._get_lb_list(n_samples_list)
         
         if self._verbose_ == 1:
@@ -114,10 +114,33 @@ class RatioDataGenerator(object):
                     np.random.shuffle(index_list[i1])
                 
                 per_class_batch_idx = index_list[i1][pointer_list[i1] : min(pointer_list[i1] + n_per_class_list[i1], len_list[i1])]
-                batch_x.append(xs['x'][per_class_batch_idx])
-                batch_y.append(xs['y'][per_class_batch_idx])
+
+                for loc in per_class_batch_idx:
+                    batch_x.append([xs['x'][loc]])
+                    batch_y.append([xs['y'][loc]])
+
                 pointer_list[i1] += n_per_class_list[i1]
+           
+            batch_x = np.asarray(batch_x)
+            batch_y = np.asarray(batch_y)
+
             batch_x = np.concatenate(batch_x, axis=0)
             batch_y = np.concatenate(batch_y, axis=0)
             yield batch_x, batch_y
+
+
+# class AVSequence(Sequence):
+
+#     def __init__(self, data_set, batch_size):
+#         self.data_set = data_set
+#         self.batch_size = batch_size
+
+#     def __len__(self):
+#         return np.ceil(self.data_set['x'].shape[0] / float(self.batch_size))
+
+#     def __getitem__(self, idx):
+#         batch_x = self.data_set['x'][idx * self.batch_size:(idx + 1) * self.batch_size]
+#         batch_y = self.data_set['y'][idx * self.batch_size:(idx + 1) * self.batch_size]
+
+#         return np.array(batch_x), np.array(batch_y)
 

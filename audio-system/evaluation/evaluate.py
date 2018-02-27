@@ -48,6 +48,7 @@ class AudioTaggingEvaluate(object):
         (gt_na_list, gt_mat) = at_read_weak_gt_csv(self.weak_gt_csv, self.lbs)
         (pd_na_list, pd_prob_mat) = at_read_prob_mat_csv(pd_prob_mat_csv)
         pd_prob_mat = self._reorder_mat(pd_prob_mat, pd_na_list, gt_na_list)
+        gt_mat = self._reorder_mat(gt_mat, pd_na_list, pd_prob_mat)
         del pd_na_list
         
         stat = self.get_stats_from_prob_mat(pd_prob_mat, gt_mat, thres_ary)
@@ -212,7 +213,7 @@ class AudioTaggingEvaluate(object):
         fr.close()
 
     def _reorder_mat(self, pd_mat, pd_na_list, gt_na_list):
-        indexes = [pd_na_list.index(e) for e in gt_na_list]
+        indexes = [pd_na_list.index(e) for e in gt_na_list if e in pd_na_list]
         return pd_mat[indexes]
         
     def _get_best_thres_ary(self, pd_prob_mat, gt_mat):

@@ -128,65 +128,81 @@ def pack_features_to_hdf5(audio_feature_dir, video_feature_dir, csv_path, out_pa
     
     t1 = time.time()
     x_all, y_all, na_all = [], [], []
+
+    with h5py.File(out_path, 'w') as hf:  
+        x_dset = hf.create_dataset('x', (1,240,1064), maxshape=(None,240,1064), dtype='f', chunks=(1,240,1064))     
     
-    if csv_path != "":    # Pack from csv file (training & testing from dev. data)
-        with open(csv_path, 'rt') as f:
-            reader = csv.reader(f)
-            lis = list(reader)
-        count = 0
-        for li in lis:
-            [id, start, end, labels, label_ids] = li
-            if count % 100 == 0: print(count)
-            # id = os.path.splitext(id)[0]
-            filename = 'Y' + id + '_' + start + '_' + end # Correspond to the wav name.
-            feature_filename = filename + ".pkl"
-            feature_path = os.path.join(audio_feature_dir, feature_filename)
+        if csv_path != "":    # Pack from csv file (training & testing from dev. data)         
+            with open(csv_path, 'rt') as f:
+                reader = csv.reader(f)
+                lis = list(reader)
 
-            video_feature_path = os.path.join(video_feature_dir, feature_filename)
-            
-            if not os.path.isfile(feature_path) or not os.path.isfile(video_feature_path):
-                print("File %s is in the csv file but the feature is not extracted!" % filename)
-            else:
-                na_all.append(filename[1:] + ".wav") # Remove 'Y' in the begining.
+            count = 0
+            for li in lis:
+                [id, start, end, labels, label_ids] = li
+                if count % 100 == 0: print(count)
+                # id = os.path.splitext(id)[0]
+                filename = 'Y' + id + '_' + start + '_' + end # Correspond to the wav name.
+                feature_filename = filename + ".pkl"
+                feature_path = os.path.join(audio_feature_dir, feature_filename)
 
-                x_audio = pickle.load(open(feature_path, 'rb'))
-                x_video = pickle.load(open(video_feature_path, 'rb')).repeat(240, 0) # Height needs to be 240 like frequency
+                video_feature_path = os.path.join(video_feature_dir, feature_filename)
+                
+                if not os.path.isfile(feature_path) or not os.path.isfile(video_feature_path):
+                    print("File %s is in the csv file but the feature is not extracted!" % filename)
+                else:
+                    na_all.append(filename[1:] + ".wav") # Remove 'Y' in the begining.
 
-                x = np.hstack((x_audio, x_video)) # vstack or hstack
+                    x_audio = pickle.load(open(feature_path, 'rb'))
+                    x_audio = pad_trunc_seq(x_audio, max_len)
 
-                # What should max length be with video information. Think max length is to do with time
-                x = pad_trunc_seq(x, max_len)
-                x_all.append(x)
-                label_ids = label_ids.split(',')
-                y = ids_to_multinomial(label_ids)
-                y_all.append(y)
-            count += 1
-    else:   # Pack from features without ground truth label (dev. data)
-        names = os.listdir(audio_feature_dir)
-        names = sorted(names)
-        for feature_filename in names:
-            filename = os.path.splitext(feature_filename)[0]
-            feature_path = os.path.join(audio_feature_dir, feature_filename)
-            na_all.append(filename + ".wav")
-            x_audio = pickle.load(open(feature_path, 'rb'))
-            x_audio = pad_trunc_seq(x_audio, max_len)
-            x_all.append(x_audio)
-            y_all.append(None)
-        
-    x_all = np.array(x_all, dtype=np.float32)
-    y_all = np.array(y_all, dtype=np.bool)
-    print("len(na_all): %d", len(na_all))
-    print("x_all.shape: %s, %s" % (x_all.shape, x_all.dtype))
-    print("y_all.shape: %s, %s" % (y_all.shape, y_all.dtype))
+                    x_video = pickle.load(open(video_feature_path, 'rb')).repeat(240, 0) # Height needs to be 240 like frequency
+                    x = np.hstack((x_audio, x_video))
+                    
+                    x_dset[x_dset.shape[0] - 1] = x.astype(np.float32)
 
-    na_all = [x.encode('utf-8') for x in na_all] # convert to utf-8 to store
-    
-    with h5py.File(out_path, 'w') as hf:
-        hf.create_dataset('na_list', data=na_all)
-        hf.create_dataset('x', data=x_all)
+                    if count != (len(lis) - 1):
+                        x_dset.resize(x_dset.shape[0] + 1, axis=0)
+
+                    label_ids = label_ids.split(',')                    
+                    y = ids_to_multinomial(label_ids)
+                    y_all.append(y)
+                count += 1
+        else:   # Pack from features without ground truth label (dev. data)
+            names = os.listdir(audio_feature_dir)
+            names = sorted(names)
+            count = 0
+
+            for feature_filename in names:
+                filename = os.path.splitext(feature_filename)[0]
+                feature_path = os.path.join(audio_feature_dir, feature_filename)
+                video_feature_path = os.path.join(video_feature_dir, feature_filename)
+
+                if not os.path.isfile(feature_path) or not os.path.isfile(video_feature_path):
+                    print("File %s is in the csv file but the feature is not extracted!" % filename)
+                else:
+                    na_all.append(filename + ".wav")
+                    x_audio = pickle.load(open(feature_path, 'rb'))
+                    x_audio = pad_trunc_seq(x_audio, max_len)
+
+                    x_video = pickle.load(open(video_feature_path, 'rb')).repeat(240, 0) # Height needs to be 240 like frequency
+                    x = np.hstack((x_audio, x_video))
+                    
+                    x_dset[x_dset.shape[0] - 1] = x.astype(np.float32)
+
+                    if count != (len(names) - 1):
+                        x_dset.resize(x_dset.shape[0] + 1, axis=0)
+                        
+                    y_all.append(None)
+                    count += 1
+
+        y_all = np.array(y_all, dtype=np.bool)
         hf.create_dataset('y', data=y_all)
+
+        na_all = [x.encode('utf-8') for x in na_all] # convert to utf-8 to store
+        hf.create_dataset('na_list', data=na_all)
         
-    print("Save hdf5 to %s" % out_path)
+    
     print("Pack features time: %s" % (time.time() - t1,))
     
 def ids_to_multinomial(ids):
@@ -252,7 +268,7 @@ def load_hdf5_data(hdf5_path, verbose=1):
         
     return x, y, na_list
 
-def calculate_scaler(hdf5_path, out_path):
+def calculate_scaler(hdf5_train_path, hdf5_test_path, out_path):
     """Calculate scaler of input data on each frequency bin. 
     
     Args:
@@ -264,10 +280,21 @@ def calculate_scaler(hdf5_path, out_path):
     """
     create_folder(os.path.dirname(out_path))
     t1 = time.time()
-    (x, y, na_list) = load_hdf5_data(hdf5_path, verbose=1)
-    x = x[:, :64]
-    (n_clips, n_time, n_freq) = x.shape
-    x2d = x.reshape((n_clips * n_time, n_freq))
+    tr_data = h5py.File(hdf5_train_path, 'r+')
+    
+    count = 0
+    batch_size = 1000
+    x_audio = []
+    for i in range(0, tr_data['x'].shape[0] - 1, batch_size):
+        if i >= tr_data['x'].shape[0]:
+            i = tr_data['x'].shape[0] -1
+
+        x_audio.append(tr_data['x'][count:i, :64])
+        count += batch_size
+    x_audio = np.asarray(x_audio)
+
+    (n_clips, n_time, n_freq) = x_audio.shape
+    x2d = x_audio.reshape((n_clips * n_time, n_freq))
     scaler = preprocessing.StandardScaler().fit(x2d)
     print("Mean: %s" % (scaler.mean_,))
     print("Std: %s" % (scaler.scale_,))
@@ -276,6 +303,23 @@ def calculate_scaler(hdf5_path, out_path):
 
     with open(out_path, 'wb') as f:
         pickle.dump(scaler, f)
+
+    count = 0
+    for i in range(0, tr_data['x'].shape[0] - 1, batch_size):
+        if i >= tr_data['x'].shape[0]:
+            i = tr_data['x'].shape[0] -1
+
+        tr_data['x'][count:i, :64] = do_scale(tr_data['x'][count:i,:64], out_path, verbose=1)
+        count += batch_size
+
+    te_data = h5py.File(hdf5_test_path, 'r+')
+    count = 0
+    for i in range(0, te_data['x'].shape[0] - 1, batch_size):
+        if i >= te_data['x'].shape[0]:
+            i = te_data['x'].shape[0] -1
+
+        te_data['x'][count:i, :64] = do_scale(te_data['x'][count:i,:64], out_path, verbose=1)
+        count += batch_size
     
 def do_scale(x3d, scaler_path, verbose=1):
     """Do scale on the input sequence data. 
@@ -315,7 +359,8 @@ if __name__ == '__main__':
     parser_pf.add_argument('--out_path', type=str)
     
     parser_cs = subparsers.add_parser('calculate_scaler')
-    parser_cs.add_argument('--hdf5_path', type=str)
+    parser_cs.add_argument('--hdf5_train_path', type=str)
+    parser_cs.add_argument('--hdf5_test_path', type=str)
     parser_cs.add_argument('--out_path', type=str)
 
     args = parser.parse_args()
@@ -330,7 +375,8 @@ if __name__ == '__main__':
                               csv_path=args.csv_path,
                               out_path=args.out_path)
     elif args.mode == 'calculate_scaler':
-        calculate_scaler(hdf5_path=args.hdf5_path, 
+        calculate_scaler(hdf5_train_path=args.hdf5_train_path, 
+                        hdf5_test_path=args.hdf5_test_path,
                          out_path=args.out_path)
     else:
         raise Exception("Incorrect argument!")
