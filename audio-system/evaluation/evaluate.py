@@ -16,7 +16,7 @@ import pickle
 from .evaluation_modified_ankitshah009.Models import FileFormat
 from .evaluation_qk import evaluation as eva
 from .io_task4 import create_folder, get_my_open
-from .io_task4 import at_read_prob_mat_csv, at_read_submission_csv, at_read_weak_gt_csv
+from .io_task4 import at_read_prob_mat_csv, at_read_submission_csv, audio_tagging_read_weak_ground_truth_csv
 from .io_task4 import sed_read_prob_mat_list_to_csv, sed_read_submission_csv_to_prob_mat_list, sed_read_strong_gt_csv
 
 
@@ -30,63 +30,67 @@ class AudioTaggingEvaluate(object):
       write_stat_to_csv()
       print_stat()
     """
-    def __init__(self, weak_gt_csv, lbs):
-        self.weak_gt_csv = weak_gt_csv
-        self.lbs = lbs
-        self.lb_to_idx = {lb: index for index, lb in enumerate(self.lbs)}
+    def __init__(self, weak_gt_csv, labels):
+        self.weak_ground_truth_csv = weak_gt_csv
+        self.labels = labels
+        self.label_to_index = {label: index for index, label in enumerate(self.labels)}
         
-    def get_stats_from_prob_mat_csv(self, pd_prob_mat_csv, thres_ary):
+    def get_stats_from_probability_matrix_csv(self, predictions_probability_matrix_csv, threshold_array):
         """Get stats from prob_mat csv and ground truth csv. 
         
         Args:
-          pd_prob_mat_csv: string, path of prob_mat csv. 
-          thres_ary: list of float | 'auto' | 'no_need'. 
+          predictions_probability_matrix_csv: string, path of prob_mat csv. 
+          threshold_array: list of float | 'auto' | 'no_need'. 
         
         Returns:
           stat. 
         """
-        (gt_na_list, gt_mat) = at_read_weak_gt_csv(self.weak_gt_csv, self.lbs)
-        (pd_na_list, pd_prob_mat) = at_read_prob_mat_csv(pd_prob_mat_csv)
-        pd_prob_mat = self._reorder_mat(pd_prob_mat, pd_na_list, gt_na_list)
-        gt_mat = self._reorder_mat(gt_mat, pd_na_list, pd_prob_mat)
-        del pd_na_list
+        (ground_truth_file_list, ground_truth_matrix) = \
+            audio_tagging_read_weak_ground_truth_csv(self.weak_ground_truth_csv, self.labels)
+        (predictions_file_list, predictions_probability_matrix) = at_read_prob_mat_csv(predictions_probability_matrix_csv)
+        predictions_probability_matrix = self._reorder_matrix(predictions_probability_matrix, predictions_file_list,
+                                                              ground_truth_file_list)
+
+        indexes = [ground_truth_file_list.index(e) for e in predictions_file_list if e in ground_truth_file_list]
+        ground_truth_matrix = ground_truth_matrix[indexes]
+        print(ground_truth_matrix.shape, predictions_probability_matrix.shape)
         
-        stat = self.get_stats_from_prob_mat(pd_prob_mat, gt_mat, thres_ary)
+        stat = self.get_stats_from_probability_matrix(predictions_probability_matrix, ground_truth_matrix, threshold_array)
         return stat
         
-    def get_stats_from_prob_mat(self, pd_prob_mat, gt_mat, thres_ary):
+    def get_stats_from_probability_matrix(self, predictions_probability_matrix, ground_truth_matrix, threshold_array):
         """Get stats from prob_mat and ground truth mat. 
         
         Args:
-          pd_prob_mat: ndarray, (n_clips, n_labels)
+          predictions_probability_matrix: ndarray, (n_clips, n_labels)
           gt_prob_mat: ndarray, (n_clips, n_labels)
-          thres_ary: list of float | 'auto' | 'no_need'. 
+          threshold_array: list of float | 'auto' | 'no_need'.
           
         Returns:
           stat. 
         """        
-        n_lbs = len(self.lbs)
+        n_lbs = len(self.labels)
 
         stat = {}
-        if type(thres_ary) is list:
-            stat['thres_ary'] = thres_ary
-        elif thres_ary == 'auto':
-            thres_ary = self._get_best_thres_ary(pd_prob_mat, gt_mat)
-            stat['thres_ary'] = thres_ary
-        elif thres_ary == 'no_need':
-            thres_ary = [0.5] * len(self.lbs)
-            stat['thres_ary'] = ['no_need'] * len(self.lbs)
+        if type(threshold_array) is list:
+            stat['thres_ary'] = threshold_array
+        elif threshold_array == 'auto':
+            threshold_array = self._get_best_thres_ary(predictions_probability_matrix, ground_truth_matrix)
+            stat['thres_ary'] = threshold_array
+        elif threshold_array == 'no_need':
+            threshold_array = [0.5] * len(self.labels)
+            stat['thres_ary'] = ['no_need'] * len(self.labels)
         else:
             raise Exception("thres_ary type wrong!")
         
-        pd_digit_mat = self._get_digit_mat_from_thres_ary(pd_prob_mat, thres_ary)
+        prediction_digit_matrix = self._get_digit_mat_from_thres_ary(predictions_probability_matrix, threshold_array)
         
         # overall stat
-        eer = eva.eer(pd_prob_mat.flatten(), gt_mat.flatten())
-        auc = eva.roc_auc(pd_prob_mat.flatten(), gt_mat.flatten())
-        (tp, fn, fp, tn) = eva.tp_fn_fp_tn(pd_digit_mat, gt_mat, 0.5)
-        prec = eva.precision(pd_digit_mat, gt_mat, 0.5)
-        rec = eva.recall(pd_digit_mat, gt_mat, 0.5)
+        eer = eva.eer(predictions_probability_matrix.flatten(), ground_truth_matrix.flatten())
+        auc = eva.roc_auc(predictions_probability_matrix.flatten(), ground_truth_matrix.flatten())
+        (tp, fn, fp, tn) = eva.tp_fn_fp_tn(prediction_digit_matrix, ground_truth_matrix, 0.5)
+        prec = eva.precision(prediction_digit_matrix, ground_truth_matrix, 0.5)
+        rec = eva.recall(prediction_digit_matrix, ground_truth_matrix, 0.5)
         f_val = eva.f_value(prec, rec)
         stat['overall'] = {'tp': tp, 'fn': fn, 'fp': fp, 'tn': tn, 
                              'precision': prec, 'recall': rec, 'f_value': f_val, 
@@ -94,14 +98,14 @@ class AudioTaggingEvaluate(object):
 
         # element-wise stat
         stat['event_wise'] = {}
-        for k in range(len(self.lbs)):
-            eer = eva.eer(pd_prob_mat[:, k], gt_mat[:, k])
-            auc = eva.roc_auc(pd_prob_mat[:, k], gt_mat[:, k])
-            (tp, fn, fp, tn) = eva.tp_fn_fp_tn(pd_digit_mat[:, k], gt_mat[:, k], 0.5)
-            prec = eva.precision(pd_digit_mat[:, k], gt_mat[:, k], 0.5)
-            rec = eva.recall(pd_digit_mat[:, k], gt_mat[:, k], 0.5)
+        for k in range(len(self.labels)):
+            eer = eva.eer(predictions_probability_matrix[:, k], ground_truth_matrix[:, k])
+            auc = eva.roc_auc(predictions_probability_matrix[:, k], ground_truth_matrix[:, k])
+            (tp, fn, fp, tn) = eva.tp_fn_fp_tn(prediction_digit_matrix[:, k], ground_truth_matrix[:, k], 0.5)
+            prec = eva.precision(prediction_digit_matrix[:, k], ground_truth_matrix[:, k], 0.5)
+            rec = eva.recall(prediction_digit_matrix[:, k], ground_truth_matrix[:, k], 0.5)
             f_val = eva.f_value(prec, rec)
-            stat['event_wise'][self.lbs[k]] = {'tp': tp, 'fn': fn, 'fp': fp, 'tn': tn, 
+            stat['event_wise'][self.labels[k]] = {'tp': tp, 'fn': fn, 'fp': fp, 'tn': tn,
                              'precision': prec, 'recall': rec, 'f_value': f_val, 
                              'eer': eer, 'auc': auc}
         return stat
@@ -109,12 +113,12 @@ class AudioTaggingEvaluate(object):
     def get_stats_from_submit_format(self, submission_csv):
         """Get stats from submission csv and ground truth csv. 
         """
-        (gt_na_list, gt_mat) = at_read_weak_gt_csv(self.weak_gt_csv, self.lbs)
-        (pd_na_list, pd_digit_mat) = at_read_submission_csv(submission_csv, self.lbs)
-        pd_digit_mat = self._reorder_mat(pd_digit_mat, pd_na_list, gt_na_list)
+        (gt_na_list, gt_mat) = audio_tagging_read_weak_ground_truth_csv(self.weak_ground_truth_csv, self.labels)
+        (pd_na_list, pd_digit_mat) = at_read_submission_csv(submission_csv, self.labels)
+        pd_digit_mat = self._reorder_matrix(pd_digit_mat, pd_na_list, gt_na_list)
         del pd_na_list
         
-        stat = self.get_stats_from_prob_mat(pd_digit_mat, gt_mat, thres_ary='no_need')
+        stat = self.get_stats_from_probability_matrix(pd_digit_mat, gt_mat, threshold_array='no_need')
         return stat
     
     def write_out_ankit_stat(self, submission_csv, ankit_csv, stat_path):
@@ -142,47 +146,47 @@ class AudioTaggingEvaluate(object):
         f.write('\n')
         f.write("\n\n# --------- Event wise evaluation ---------\n")
         f.write("\t")
-        for lb in self.lbs:
+        for lb in self.labels:
             f.write("\t" + lb[0:6])
             
         f.write("{0:12}".format("\nthres:"))
-        for i1 in range(len(self.lbs)):
+        for i1 in range(len(self.labels)):
             f.write("\t" + "%s" % stat['thres_ary'][i1])
             
         f.write("{0:12}".format("\ntp:"))
-        for lb in self.lbs:
+        for lb in self.labels:
             f.write("\t" + "%d" % stat['event_wise'][lb]['tp'])
         
         f.write("{0:12}".format("\nfn:"))
-        for lb in self.lbs:
+        for lb in self.labels:
             f.write("\t" + "%d" % stat['event_wise'][lb]['fn'])
 
         f.write("{0:12}".format("\nfp:"))
-        for lb in self.lbs:
+        for lb in self.labels:
             f.write("\t" + "%d" % stat['event_wise'][lb]['fp'])
             
         f.write("{0:12}".format("\ntn:"))
-        for lb in self.lbs:
+        for lb in self.labels:
             f.write("\t" + "%d" % stat['event_wise'][lb]['tn'])
             
         f.write("{0:12}".format("\nprecision:"))
-        for lb in self.lbs:
+        for lb in self.labels:
             f.write("\t" + "%.3f" % stat['event_wise'][lb]['precision'])
             
         f.write("{0:12}".format("\nrecall:"))
-        for lb in self.lbs:
+        for lb in self.labels:
             f.write("\t" + "%.3f" % stat['event_wise'][lb]['recall'])
         
         f.write("{0:12}".format("\nf_value:"))
-        for lb in self.lbs:
+        for lb in self.labels:
             f.write("\t" + "%.3f" % stat['event_wise'][lb]['f_value'])
             
         f.write("{0:12}".format("\neer:"))
-        for lb in self.lbs:
+        for lb in self.labels:
             f.write("\t" + "%.3f" % stat['event_wise'][lb]['eer'])
             
         f.write("{0:12}".format("\nauc:"))
-        for lb in self.lbs:
+        for lb in self.labels:
             f.write("\t" + "%.3f" % stat['event_wise'][lb]['auc'])
                     
         f.write("\n")
@@ -212,13 +216,13 @@ class AudioTaggingEvaluate(object):
         print((fr.read()))
         fr.close()
 
-    def _reorder_mat(self, pd_mat, pd_na_list, gt_na_list):
+    def _reorder_matrix(self, pd_mat, pd_na_list, gt_na_list):
         indexes = [pd_na_list.index(e) for e in gt_na_list if e in pd_na_list]
         return pd_mat[indexes]
         
     def _get_best_thres_ary(self, pd_prob_mat, gt_mat):
         thres_ary = []
-        for k in range(len(self.lbs)):
+        for k in range(len(self.labels)):
             f_val_max = -np.inf
             best_thres = None
             for thres in np.arange(0., 1.+1e-6, 0.01):
@@ -234,7 +238,7 @@ class AudioTaggingEvaluate(object):
     def _get_digit_mat_from_thres_ary(self, pd_prob_mat, thres_ary):
         pd_digit_mat = np.zeros_like(pd_prob_mat)
         for n in range(len(pd_prob_mat)):
-            for k in range(len(self.lbs)):
+            for k in range(len(self.labels)):
                 if pd_prob_mat[n, k] > thres_ary[k]:
                     pd_digit_mat[n, k] = 1
             if np.sum(pd_digit_mat[n, :]) == 0:
@@ -243,7 +247,7 @@ class AudioTaggingEvaluate(object):
 
     def _get_mean_stat(self, stat, type):
         val_ary = []
-        for lb in self.lbs:
+        for lb in self.labels:
             val_ary.append(stat['event_wise'][lb][type])
         return np.mean(val_ary)
         
@@ -465,7 +469,7 @@ class SoundEventDetectionEvaluate(object):
         fr.close()
         
     def _reorder_mat_list(self, pd_mat_list, pd_na_list, gt_na_list):
-        indexes = [pd_na_list.index(e) for e in gt_na_list]
+        indexes = [pd_na_list.index(e) for e in gt_na_list if e in pd_na_list]
         return [pd_mat_list[idx] for idx in indexes]
 
     def _get_digit_mat_from_thres_ary(self, pd_prob_mat, thres_ary):

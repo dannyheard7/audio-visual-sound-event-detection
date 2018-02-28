@@ -40,11 +40,11 @@ def at_evaluate_from_prob_mat_csv():
         
     at_evaluator = evaluate.AudioTaggingEvaluate(
                        weak_gt_csv=weak_gt_csv, 
-                       lbs=lbs)
+                       labels=lbs)
         
-    stat = at_evaluator.get_stats_from_prob_mat_csv(
-                 pd_prob_mat_csv=at_prob_path, 
-                 thres_ary=thres_ary)
+    stat = at_evaluator.get_stats_from_probability_matrix_csv(
+                 predictions_probability_matrix_csv=at_prob_path,
+                 threshold_array=thres_ary)
                  
     at_evaluator.write_stat_to_csv(stat=stat, 
                                      stat_path=at_stat_path)
@@ -62,7 +62,7 @@ def at_evaluate_from_submission_csv():
     
     at_evaluator = evaluate.AudioTaggingEvaluate(
                        weak_gt_csv=weak_gt_csv, 
-                       lbs=lbs)
+                       labels=lbs)
     
     stat = at_evaluator.get_stats_from_submit_format(
                  submission_csv=at_submission_path)
@@ -80,7 +80,7 @@ def at_evaluate_ankit():
     
     at_evaluator = evaluate.AudioTaggingEvaluate(
                        weak_gt_csv=weak_gt_csv, 
-                       lbs=lbs)
+                       labels=lbs)
                        
     at_evaluator.write_out_ankit_stat(
         submission_csv=at_submission_path, 

@@ -2,7 +2,7 @@ import os
 import numpy as np
 import argparse
 import numpy as np 
-import pickle
+import dill as pickle
 from keras.preprocessing import image
 from keras.applications.inception_v3 import InceptionV3, preprocess_input, decode_predictions
 from collections import defaultdict
@@ -12,7 +12,7 @@ import meta
 import FileIO
 
 
-def take_frame_from_start(video_info, video_path, output_folder):
+def take_frame_from_start(video_path, output_folder):
     frame_filename = os.path.join(output_folder, FileIO.get_frame_filename(video_path, "start", config.video_frames_extension))
 
     ffmpeg_string = "ffmpeg -i {}  -ss 00:00:00.1 -vframes 1 {}".format(video_path, frame_filename)
@@ -84,8 +84,7 @@ def get_video_frames(videos_location, output_folder, data_csv_file):
     features_output_path = os.path.join(output_folder, "features/")
     FileIO.create_folder(features_output_path)
 
-    class_labels = meta.load_sound_event_classes()
-    videos_by_classes = meta.load_videos_info(videos_location, data_csv_file)
+    videos_info = FileIO.load_csv_as_list(data_csv_file)
     model = InceptionV3(weights='imagenet')
 
     for video_info in videos_info:
@@ -94,7 +93,7 @@ def get_video_frames(videos_location, output_folder, data_csv_file):
         frame_features_path = os.path.join(features_output_path, os.path.splitext(video_filename)[0]) + ".pkl"
 
         if os.path.exists(video_path) and not os.path.exists(frame_features_path):
-            frame_filename = take_frame_from_start(video_info, video_path, output_folder)
+            frame_filename = take_frame_from_start(video_path, output_folder)
 
             if os.path.exists(frame_filename):
                 preds = extract_image_features(model, frame_filename)
@@ -108,23 +107,23 @@ def plot_preds_by_class(videos_location, output_folder, data_csv_file):
     class_labels = meta.load_sound_event_classes()
     videos_by_classes = meta.load_videos_info_by_class(data_csv_file)
     model = InceptionV3(weights='imagenet')
-    class_predictions =  defaultdict(list)
+    class_predictions = defaultdict(lambda: defaultdict(int))
 
     for class_label, class_name in class_labels.items():
         for video_info in videos_by_classes[class_label]:
-	        video_filename = FileIO.get_video_filename(video_info[0], video_info[1], video_info[2], config.video_file_extension)
-	        video_path = os.path.join(videos_location, video_filename)
+            video_filename = FileIO.get_video_filename(video_info[0], video_info[1], video_info[2], config.video_file_extension)
+            video_path = os.path.join(videos_location, video_filename)
 
-	        if os.path.exists(video_path):
-	            frame_filename = take_frame_from_start(video_info, video_path, output_folder)
+            if os.path.exists(video_path):
+                frame_filename = take_frame_from_start(video_path, output_folder)
 
-	            if os.path.exists(frame_filename):
-	                preds = extract_image_features(model, frame_filename)
-	                os.remove(frame_filename)
+                if os.path.exists(frame_filename):
+                    preds = extract_image_features(model, frame_filename)
+                    os.remove(frame_filename)
 
-	                decoded = decode_predictions(preds, top=3)[0]
-	                for prediction in decoded:
-	                    class_predictions[class_name].append((prediction[1], prediction[2]))
+                    decoded = decode_predictions(preds, top=3)[0]
+                    for prediction in decoded:
+                        class_predictions[class_name][prediction[1]]  += 1 #, prediction[2]))
 
     print(class_predictions)
     pickle.dump(class_predictions, open("predictions.pkl", 'wb'), protocol=pickle.HIGHEST_PROTOCOL)

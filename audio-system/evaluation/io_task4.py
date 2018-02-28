@@ -168,41 +168,41 @@ def at_write_prob_mat_csv_to_submission_csv(at_prob_mat_path, lbs, thres_ary, ou
     (na_list, prob_mat) = at_read_prob_mat_csv(at_prob_mat_path)
     at_write_prob_mat_to_submission_csv(na_list, prob_mat, lbs, thres_ary, out_path)
     
-def at_read_weak_gt_csv(weak_gt_csv, lbs):
+def audio_tagging_read_weak_ground_truth_csv(weak_ground_truth_csv, labels):
     """Read strong_gt csv to digit mat with shape (n_clips, n_labels). 
     
     Args:
-      weak_gt_csv: string, strong_gt csv path. 
-      lbs: list of string. 
+      weak_ground_truth_csv: string, strong_gt csv path.
+      labels: list of string.
       
     Returns:
-      na_list: list of string. 
+      file_list: list of string.
       digit_mat: ndarray, (n_clips, n_labels)
     """
-    lb_to_idx = {lb: index for index, lb in enumerate(lbs)}
-    with open(weak_gt_csv, 'rt') as f:
+    labels_to_index = {label: index for index, label in enumerate(labels)}
+    with open(weak_ground_truth_csv, 'rt') as f:
         reader = csv.reader(f, delimiter='\t')
         lis = list(reader)
         
-    na_list = []
+    file_list = []
     digit_mat = []
     for li in lis:        
-        na = li[0]
-        lb = li[3]
+        file = li[0]
+        label = li[3]
         
-        if lb not in list(lb_to_idx.keys()):
-            print(lb, "not a key! (Please ignore)")
+        if label not in list(labels_to_index.keys()):
+            print(label, "not a key! (Please ignore)")
         else:
-            index = lb_to_idx[lb]
-            if na not in na_list:
-                na_list.append(na)
-                gt_ary = np.zeros(len(lbs))
-                gt_ary[index] = 1
-                digit_mat.append(gt_ary)
+            index = labels_to_index[label]
+            if file not in file_list:
+                file_list.append(file)
+                ground_truth_array = np.zeros(len(labels))
+                ground_truth_array[index] = 1
+                digit_mat.append(ground_truth_array)
             else:
-                digit_mat[na_list.index(na)][index] = 1
+                digit_mat[file_list.index(file)][index] = 1
     digit_mat = np.array(digit_mat)
-    return na_list, digit_mat
+    return file_list, digit_mat
     
     
 ### Sound event detection (SED) related

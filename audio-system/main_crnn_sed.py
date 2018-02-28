@@ -180,12 +180,11 @@ def run_func(func, x, batch_size):
 
 # Recognize and write probabilites. 
 def recognize(args, at_bool, sed_bool):
-    (te_x, te_y, te_na_list) = load_hdf5_data(args.te_hdf5_path, verbose=1)
+    (te_x, _, te_na_list) = load_hdf5_data(args.te_hdf5_path, verbose=1)
     x = te_x
-    y = te_y
     na_list = te_na_list
     
-    x = do_scale(x, args.scaler_path, verbose=1)
+    # x[:, :64] = do_scale(x[:, :64], args.scaler_path, verbose=1)
     
     fusion_at_list = []
     fusion_sed_list = []
@@ -193,10 +192,6 @@ def recognize(args, at_bool, sed_bool):
         t1 = time.time()
 
         file_name = os.path.join(args.model_dir, "*.%02d-0.*.hdf5" % epoch)
-
-        #[model_path] = glob.glob(file_name)
-        #model = load_model(model_path)
-
         
         model_path = glob.glob(file_name)[0] # returns more than one item so can't unpack
         model = load_model(model_path)
@@ -239,36 +234,36 @@ def recognize(args, at_bool, sed_bool):
 
 # Get stats from probabilites. 
 def get_stat(args, at_bool, sed_bool):
-    lbs = cfg.lbs
+    labels = cfg.lbs
     step_time_in_sec = cfg.step_time_in_sec
     max_len = cfg.max_len
-    thres_ary = [0.3] * len(lbs)
+    threshold_array = [0.3] * len(labels)
 
     # Calculate AT stat
     if at_bool:
-        pd_prob_mat_csv_path = os.path.join(args.pred_dir, "at_prob_mat.csv.gz")
-        at_stat_path = os.path.join(args.stat_dir, "at_stat.csv")
-        at_submission_path = os.path.join(args.submission_dir, "at_submission.csv")
+        prediction_probability_matrix_csv_path = os.path.join(args.pred_dir, "at_prob_mat.csv.gz")
+        audio_tagging_stat_path = os.path.join(args.stat_dir, "at_stat.csv")
+        audio_tagging_submission_path = os.path.join(args.submission_dir, "at_submission.csv")
         
-        at_evaluator = evaluate.AudioTaggingEvaluate(
+        audio_tagging_evaluator = evaluate.AudioTaggingEvaluate(
             weak_gt_csv="meta_data/groundtruth_weak_label_testing_set.csv", 
-            lbs=lbs)
+            labels=labels)
         
-        at_stat = at_evaluator.get_stats_from_prob_mat_csv(
-                        pd_prob_mat_csv=pd_prob_mat_csv_path, 
-                        thres_ary=thres_ary)
+        at_stat = audio_tagging_evaluator.get_stats_from_probability_matrix_csv(
+                        predictions_probability_matrix_csv=prediction_probability_matrix_csv_path,
+                        threshold_array=threshold_array)
                         
         # Write out & print AT stat
-        at_evaluator.write_stat_to_csv(stat=at_stat, 
-                                       stat_path=at_stat_path)
-        at_evaluator.print_stat(stat_path=at_stat_path)
+        audio_tagging_evaluator.write_stat_to_csv(stat=at_stat,
+                                       stat_path=audio_tagging_stat_path)
+        audio_tagging_evaluator.print_stat(stat_path=audio_tagging_stat_path)
         
         # Write AT to submission format
         io_task4.at_write_prob_mat_csv_to_submission_csv(
-            at_prob_mat_path=pd_prob_mat_csv_path, 
-            lbs=lbs, 
+            at_prob_mat_path=prediction_probability_matrix_csv_path,
+            lbs=labels,
             thres_ary=at_stat['thres_ary'], 
-            out_path=at_submission_path)
+            out_path=audio_tagging_submission_path)
                
     # Calculate SED stat
     if sed_bool:
@@ -278,14 +273,14 @@ def get_stat(args, at_bool, sed_bool):
         
         sed_evaluator = evaluate.SoundEventDetectionEvaluate(
             strong_gt_csv="meta_data/groundtruth_strong_label_testing_set.csv", 
-            lbs=lbs, 
+            lbs=labels,
             step_sec=step_time_in_sec, 
             max_len=max_len)
                             
         # Write out & print SED stat
         sed_stat = sed_evaluator.get_stats_from_prob_mat_list_csv(
                     pd_prob_mat_list_csv=sed_prob_mat_list_path, 
-                    thres_ary=thres_ary)
+                    thres_ary=threshold_array)
                     
         # Write SED to submission format
         sed_evaluator.write_stat_to_csv(stat=sed_stat, 
@@ -295,8 +290,8 @@ def get_stat(args, at_bool, sed_bool):
         # Write SED to submission format
         io_task4.sed_write_prob_mat_list_csv_to_submission_csv(
             sed_prob_mat_list_path=sed_prob_mat_list_path, 
-            lbs=lbs, 
-            thres_ary=thres_ary, 
+            lbs=labels,
+            thres_ary=threshold_array,
             step_sec=step_time_in_sec, 
             out_path=sed_submission_path)
                                                         

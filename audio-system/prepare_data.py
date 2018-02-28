@@ -285,14 +285,14 @@ def calculate_scaler(hdf5_train_path, hdf5_test_path, out_path):
     count = 0
     batch_size = 1000
     x_audio = []
-    for i in range(0, tr_data['x'].shape[0] - 1, batch_size):
+    for i in range(batch_size, tr_data['x'].shape[0] + batch_size, batch_size):
         if i >= tr_data['x'].shape[0]:
             i = tr_data['x'].shape[0] -1
-
-        x_audio.append(tr_data['x'][count:i, :64])
+        x_audio.extend(tr_data['x'][count:i, :, :64])
+        print(len(x_audio))
         count += batch_size
     x_audio = np.asarray(x_audio)
-
+    print(x_audio.shape)
     (n_clips, n_time, n_freq) = x_audio.shape
     x2d = x_audio.reshape((n_clips * n_time, n_freq))
     scaler = preprocessing.StandardScaler().fit(x2d)
@@ -305,35 +305,34 @@ def calculate_scaler(hdf5_train_path, hdf5_test_path, out_path):
         pickle.dump(scaler, f)
 
     count = 0
-    for i in range(0, tr_data['x'].shape[0] - 1, batch_size):
+    for i in range(batch_size, tr_data['x'].shape[0] + batch_size, batch_size):
         if i >= tr_data['x'].shape[0]:
             i = tr_data['x'].shape[0] -1
 
-        tr_data['x'][count:i, :64] = do_scale(tr_data['x'][count:i,:64], out_path, verbose=1)
+        tr_data['x'][count:i, :, :64] = do_scale(tr_data['x'][count:i, :, :64], scaler, verbose=1)
         count += batch_size
 
     te_data = h5py.File(hdf5_test_path, 'r+')
     count = 0
-    for i in range(0, te_data['x'].shape[0] - 1, batch_size):
+    for i in range(batch_size, te_data['x'].shape[0] + batch_size, batch_size):
         if i >= te_data['x'].shape[0]:
             i = te_data['x'].shape[0] -1
 
-        te_data['x'][count:i, :64] = do_scale(te_data['x'][count:i,:64], out_path, verbose=1)
+        te_data['x'][count:i, :, :64] = do_scale(te_data['x'][count:i, :, :64], scaler, verbose=1)
         count += batch_size
     
-def do_scale(x3d, scaler_path, verbose=1):
+def do_scale(x3d, scaler, verbose=1):
     """Do scale on the input sequence data. 
     
     Args:
       x3d: ndarray, input sequence data, shape: (n_clips, n_time, n_freq)
-      scaler_path: string, path of pre-calculated scaler. 
+      scaler: pre-computed scalar 
       verbose: integar, print flag. 
       
     Returns:
       Scaled input sequence data. 
     """
     t1 = time.time()
-    scaler = pickle.load(open(scaler_path, 'rb'))
     (n_clips, n_time, n_freq) = x3d.shape
     x2d = x3d.reshape((n_clips * n_time, n_freq))
     x2d_scaled = scaler.transform(x2d)
