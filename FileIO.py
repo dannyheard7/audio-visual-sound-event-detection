@@ -44,8 +44,8 @@ def save_data_as_pickle():
 
 
 def extract_evaluation_video_info():
-    with open('metadata/evaluation_set.csv', 'w') as out, open('metadata/groundtruth_strong_label_evaluation_set.csv', 'r') as in_file:
-        for row in csv.reader(in_file):
+    with open('metadata/evaluation_set.csv', 'w') as out, open('metadata/groundtruth_weak_label_evaluation_set.csv', 'r') as in_file:
+        for row in csv.reader(in_file, delimiter='\t'):
             audio_file_name = row[0]
             split_dot = audio_file_name.split(".")[0]
             k = split_dot.rfind("_")
@@ -60,6 +60,6 @@ def extract_evaluation_video_info():
 
             start_time =  audio_file_name_split[(second_last_underscore + 1):last_underscore]
 
-            classes = row[-1]
+            classes = "\"{}\"".format(row[-1])
             
             print(video_id + ',' + start_time + ',' + end_time + ',' + classes, file=out)
