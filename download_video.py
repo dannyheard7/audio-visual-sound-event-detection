@@ -1,14 +1,17 @@
-import pafy
-import time
 import datetime
-import itertools
+import multiprocessing
 import os
 import sys
-import multiprocessing
+import time
 from multiprocessing import Pool
-from tqdm import tqdm
+
+import pafy
+
 
 #Format video - Convert to H.264 and trim
+import config
+
+
 def format_video(input_video_file, output_video_file, start_time, duration):
 	cmdstring = "ffmpeg -loglevel panic -i {0} -ss {1} -t {2} {3}".format(input_video_file, start_time.split(".")[0], duration, output_video_file)
 	print(cmdstring)
@@ -16,6 +19,7 @@ def format_video(input_video_file, output_video_file, start_time, duration):
 
 def multi_run_wrapper(args):
    return download_video_method(*args)
+
 
 #Method to download video - Downloads the best video available for video id, calls the formatting & segmenting video function based on start and end time. 
 def download_video_method(line,csv_file):
@@ -32,7 +36,7 @@ def download_video_method(line,csv_file):
 	if not os.path.exists(segmented_folder):
 		os.makedirs(segmented_folder)
 	
-	path_to_segmented_video = segmented_folder + "/Y" + query_id.rstrip() + '_' + start_seconds.rstrip() + '_' + end_seconds.rstrip() +  ".mp4"	
+	path_to_segmented_video = segmented_folder + "/Y" + query_id.rstrip() + '_' + start_seconds.rstrip() + '_' + end_seconds.rstrip() +  config.video_frames_extension
 
 	if not os.path.isfile(path_to_segmented_video):
 		try:

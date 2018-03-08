@@ -1,3 +1,2 @@
-Dissertaion
 pandas==0.22.0
 pafy==0.5.4

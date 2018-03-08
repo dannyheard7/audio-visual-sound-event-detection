@@ -61,6 +61,7 @@ def take_n_equal_spaced_frames(num_frames, video_info, video_path, output_folder
 
     return filenames
 
+
 def take_frame_each_scene(video_info, video_filename, video_location, output_folder):
     pass
 
@@ -75,14 +76,17 @@ def extract_image_features(model, image_path):
     return preds
    
 
-def get_video_frames(videos_location, output_folder, data_csv_file):
+def get_video_frame_features(videos_location, output_folder, data_csv_file):
     FileIO.create_folder(output_folder)
     
-    features_output_path = os.path.join(output_folder, "features/")
+    features_output_path = os.path.join(output_folder, "features-pca/")
     FileIO.create_folder(features_output_path)
 
     videos_info = FileIO.load_csv_as_list(data_csv_file)
     model = InceptionV3(weights='imagenet')
+
+    predictions_video_info = []
+    all_predictions = []
 
     for video_info in videos_info:
         video_filename = FileIO.get_video_filename(video_info[0], video_info[1], video_info[2], config.video_file_extension)
@@ -93,9 +97,36 @@ def get_video_frames(videos_location, output_folder, data_csv_file):
             frame_filename = take_frame_from_start(video_path, output_folder)
 
             if os.path.exists(frame_filename):
-                preds = extract_image_features(model, frame_filename)
-                pickle.dump(preds, open(features_output_path, 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
+                predictions = extract_image_features(model, frame_filename)
                 os.remove(frame_filename)
+                predictions_video_info.append(video_info)
+                all_predictions.append(predictions)
+
+    all_predictions = dimensionality_reduction(np.asarray(all_predictions)[:, 0, :], 30) # Why does this turn into a 3-dimensional array?
+
+    for i in range(0, len(predictions_video_info)):
+        video_info = predictions_video_info[i]
+
+        video_filename = FileIO.get_video_filename(video_info[0], video_info[1], video_info[2],
+                                                   config.video_file_extension)
+        frame_features_path = os.path.join(features_output_path, os.path.splitext(video_filename)[0]) + ".pkl"
+
+        pickle.dump(all_predictions[i], open(frame_features_path, 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
+
+
+def dimensionality_reduction(data, num_dims_to_keep):
+    mean = np.mean(data, axis=0)
+    centered_data = data - mean
+    cov = np.cov(centered_data.T)
+
+    eigenvalues, eigenvectors = np.linalg.eig(cov)
+    p = eigenvalues.argsort()[::-1]  # Sort eigenvalues in descending order
+    eigenvectors = eigenvectors[:, p]  # Sort eigenvectors by corresponding eignenvalue
+
+    principal_components = eigenvectors[:, :num_dims_to_keep]
+    reduced_data = data.dot(principal_components)
+
+    return reduced_data
 
 
 if __name__ == "__main__":
@@ -110,4 +141,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.mode == 'get_frames':
-        get_video_frames(args.videos_location, args.frames_location, args.csv_file)
+        get_video_frame_features(args.videos_location, args.frames_location, args.csv_file)
