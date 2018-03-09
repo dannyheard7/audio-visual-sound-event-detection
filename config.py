@@ -20,3 +20,6 @@ training_data_csv_file = "metadata/training_set.csv"
 testing_data_csv_file = "metadata/testing_set.csv"
 evaluation_data_csv_file = "metadata/evaluation_set.csv"
 
+
+num_components_to_keep = 32
+

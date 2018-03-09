@@ -77,10 +77,11 @@ def create_model(num_classes, data_shape):
     a1 = block(a1)
     a1 = block(a1)
     a1 = MaxPooling2D(pool_size=(1, 2))(a1) # (N, 240, 32, 128)
+    print(a1._keras_shape)
     
     a1 = block(a1)
     a1 = block(a1)
-    a1 = MaxPooling2D(pool_size=(1, 2))(a1) # (N, 240, 16, 128)
+    a1 = MaxPooling2D(pool_size=(1, 3))(a1) # (N, 240, 16, 128) # Maybe changing the size of an intermediate layer will help?
     
     a1 = block(a1)
     a1 = block(a1)
@@ -92,12 +93,9 @@ def create_model(num_classes, data_shape):
     
     a1 = Conv2D(256, (3, 3), padding="same", activation="relu", use_bias=True)(a1)
     print(a1._keras_shape)
-    a1 = MaxPooling2D(pool_size=(1,66))(a1) # (N, 240, 1, 256)
-
-    print(a1._keras_shape)
+    a1 = MaxPooling2D(pool_size=(1,4))(a1) # (N, 240, 1, 256)
     
     a1 = Reshape((240, 256))(a1) # (N, 240, 256)
-    #a1 = Reshape((240, 16, 256))(a1)
     
     # Gated BGRU
     rnnout = Bidirectional(GRU(128, activation='linear', return_sequences=True))(a1)
@@ -123,10 +121,6 @@ def create_model(num_classes, data_shape):
 # Train model
 def train(args):
     num_classes = cfg.num_classes
-    
-    # Load training & testing data
-    #(tr_x, tr_y, tr_na_list) = load_hdf5_data(args.tr_hdf5_path, verbose=1)
-    #(te_x, te_y, te_na_list) = load_hdf5_data(args.te_hdf5_path, verbose=1)
 
     tr_data = h5py.File(args.tr_hdf5_path, 'r+')
     te_data = h5py.File(args.te_hdf5_path, 'r+')
@@ -134,11 +128,6 @@ def train(args):
     tr_shape = tr_data['x'].shape
 
     print("tr_x.shape: %s" % (tr_shape,))
-
-    # Scale data
-    # Can't do this with hdf indexing
-    #tr_data['x'][:,:64] = do_scale(tr_data['x'][:,:64], args.scaler_path, verbose=1)
-    #te_data['x'][:,:64] = do_scale(te_data['x'][:,:64], args.scaler_path, verbose=1)
     
     # Build model
     model = create_model(num_classes, tr_shape)
@@ -156,13 +145,12 @@ def train(args):
                                  period=1)  
 
     # Data generator
-    gen = RatioDataGenerator(batch_size=5, type='train')
-    #test_gen = RatioDataGenerator(batch_size=5, type='test')
+    gen = RatioDataGenerator(batch_size=44, type='train')
 
     # Train
     model.fit_generator(generator=gen.generate(tr_data), 
-                        steps_per_epoch=880,    # 100 iters is called an 'epoch'
-                        epochs=28,              # Maximum 'epoch' to train - With larger dataset loss increased after epoch 28
+                        steps_per_epoch=100,    # 100 iters is called an 'epoch'
+                        epochs=31,              # Maximum 'epoch' to train - With larger dataset loss increased after epoch 28
                         verbose=1, 
                         callbacks=[save_model], 
                         validation_data=(te_data['x'], te_data['y']))
@@ -188,7 +176,7 @@ def recognize(args, at_bool, sed_bool):
     
     fusion_at_list = []
     fusion_sed_list = []
-    for epoch in range(18, 28, 1):
+    for epoch in range(20, 30, 1):
         t1 = time.time()
 
         file_name = os.path.join(args.model_dir, "*.%02d-0.*.hdf5" % epoch)

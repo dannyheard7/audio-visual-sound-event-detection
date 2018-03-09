@@ -130,7 +130,7 @@ def pack_features_to_hdf5(audio_feature_dir, video_feature_dir, csv_path, out_pa
     x_all, y_all, na_all = [], [], []
 
     with h5py.File(out_path, 'w') as hf:  
-        x_dset = hf.create_dataset('x', (1,240,1064), maxshape=(None,240,1064), dtype='f', chunks=(1,240,1064))     
+        x_dset = hf.create_dataset('x', (1, 240, 96), maxshape=(None, 240, 96), dtype='f', chunks=(1, 240, 96))
     
         if csv_path != "":    # Pack from csv file (training & testing from dev. data)         
             with open(csv_path, 'rt') as f:
@@ -159,7 +159,7 @@ def pack_features_to_hdf5(audio_feature_dir, video_feature_dir, csv_path, out_pa
                     x_video = pickle.load(open(video_feature_path, 'rb')).repeat(240, 0) # Height needs to be 240 like frequency
                     x = np.hstack((x_audio, x_video))
                     
-                    x_dset[x_dset.shape[0] - 1] = x.astype(np.float32)
+                    x_dset[-1] = x.astype(np.float32)
 
                     if count != (len(lis) - 1):
                         x_dset.resize(x_dset.shape[0] + 1, axis=0)
@@ -188,7 +188,7 @@ def pack_features_to_hdf5(audio_feature_dir, video_feature_dir, csv_path, out_pa
                     x_video = pickle.load(open(video_feature_path, 'rb')).repeat(240, 0) # Height needs to be 240 like frequency
                     x = np.hstack((x_audio, x_video))
                     
-                    x_dset[x_dset.shape[0] - 1] = x.astype(np.float32)
+                    x_dset[-1] = x.astype(np.float32)
 
                     if count != (len(names) - 1):
                         x_dset.resize(x_dset.shape[0] + 1, axis=0)
@@ -283,7 +283,7 @@ def calculate_scaler(hdf5_train_path, hdf5_test_path, out_path):
     tr_data = h5py.File(hdf5_train_path, 'r+')
     
     count = 0
-    batch_size = 1000
+    batch_size = 10000
     x_audio = []
     for i in range(batch_size, tr_data['x'].shape[0] + batch_size, batch_size):
         if i >= tr_data['x'].shape[0]:
@@ -292,12 +292,11 @@ def calculate_scaler(hdf5_train_path, hdf5_test_path, out_path):
         print(len(x_audio))
         count += batch_size
     x_audio = np.asarray(x_audio)
-    print(x_audio.shape)
+
     (n_clips, n_time, n_freq) = x_audio.shape
     x2d = x_audio.reshape((n_clips * n_time, n_freq))
     scaler = preprocessing.StandardScaler().fit(x2d)
-    print("Mean: %s" % (scaler.mean_,))
-    print("Std: %s" % (scaler.scale_,))
+
     print("Calculating scaler time: %s" % (time.time() - t1,))
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
 

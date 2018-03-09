@@ -102,7 +102,8 @@ def get_video_frame_features(videos_location, output_folder, data_csv_file):
                 predictions_video_info.append(video_info)
                 all_predictions.append(predictions)
 
-    all_predictions = dimensionality_reduction(np.asarray(all_predictions)[:, 0, :], 30) # Why does this turn into a 3-dimensional array?
+    all_predictions = dimensionality_reduction(np.asarray(all_predictions)[:, 0, :],
+                                               config.num_components_to_keep) # Why does this turn into a 3-dimensional array?
 
     for i in range(0, len(predictions_video_info)):
         video_info = predictions_video_info[i]
@@ -110,8 +111,8 @@ def get_video_frame_features(videos_location, output_folder, data_csv_file):
         video_filename = FileIO.get_video_filename(video_info[0], video_info[1], video_info[2],
                                                    config.video_file_extension)
         frame_features_path = os.path.join(features_output_path, os.path.splitext(video_filename)[0]) + ".pkl"
-
-        pickle.dump(all_predictions[i], open(frame_features_path, 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
+        preds = all_predictions[i, :].reshape((1, -1))
+        pickle.dump(preds, open(frame_features_path, 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def dimensionality_reduction(data, num_dims_to_keep):
