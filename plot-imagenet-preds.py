@@ -3,13 +3,10 @@ import collections
 import dill as pickle
 import matplotlib as mpl
 import os
-from keras.applications import InceptionV3
-from keras.applications.imagenet_utils import decode_predictions
-
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 import math
-import video_frames
+
 
 import FileIO
 import config
@@ -17,6 +14,10 @@ import meta
 
 
 def plot_preds_by_class(videos_location, output_folder, data_csv_file):
+    import video_frames
+    from keras.applications import InceptionV3
+    from keras.applications.imagenet_utils import decode_predictions
+
     FileIO.create_folder(output_folder)
 
     class_labels = meta.load_sound_event_classes()
@@ -44,23 +45,23 @@ def plot_preds_by_class(videos_location, output_folder, data_csv_file):
                         for prediction in decoded:
                             class_predictions[class_name][prediction[1]] += 1  # , prediction[2]))
 
-    for class_name, prediction_names in class_predictions.items():
-        for prediction_name in prediction_names:
-            class_predictions[class_name][prediction_name] /= num_frames
+    class_predictions = {class_name: {prediction_name: int(math.ceil(num_predictions)) / 3 for prediction_name, num_predictions in predictions.items()} 
+                    for class_name, predictions in class_predictions.items()}
 
     print(class_predictions)
     pickle.dump(class_predictions, open("predictions.pkl", 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def plot_on_graph(predictions_file, output_file):
-    predictions = pickle.load(open(predictions_file, "rb" ))
+    class_predictions = pickle.load(open(predictions_file, "rb" ))
 
-    num_classes = len(predictions)
+    num_classes = len(class_predictions)
     cols = 2
     rows = math.ceil(num_classes / cols)
     fig, axarr = plt.subplots(rows, cols, figsize=(185, 40))
 
-    # Remove values that are less than one so graphs are not as wide
+    predictions = {class_name: {prediction_name: num_predictions for prediction_name, num_predictions in predictions.items() if num_predictions > 3} 
+                    for class_name, predictions in class_predictions.items()}
 
     dcase_labels = list(predictions.keys())
     count = 0
@@ -95,4 +96,4 @@ if __name__ == "__main__":
         plot_preds_by_class(config.video_training_data_location, config.video_training_frames_location,
                             config.training_data_csv_file)
     elif args.mode == 'plot-predictions':
-        plot_on_graph("predictions.pkl", "predictions-bar-chart.png")
+        plot_on_graph("predictions.pkl", "predictions-bar-chart3.png")

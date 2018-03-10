@@ -81,7 +81,7 @@ def create_model(num_classes, data_shape):
     
     a1 = block(a1)
     a1 = block(a1)
-    a1 = MaxPooling2D(pool_size=(1, 3))(a1) # (N, 240, 16, 128) # Maybe changing the size of an intermediate layer will help?
+    a1 = MaxPooling2D(pool_size=(1, 2))(a1) # (N, 240, 16, 128) # Maybe changing the size of an intermediate layer will help?
     
     a1 = block(a1)
     a1 = block(a1)
@@ -93,7 +93,7 @@ def create_model(num_classes, data_shape):
     
     a1 = Conv2D(256, (3, 3), padding="same", activation="relu", use_bias=True)(a1)
     print(a1._keras_shape)
-    a1 = MaxPooling2D(pool_size=(1,4))(a1) # (N, 240, 1, 256)
+    a1 = MaxPooling2D(pool_size=(1,5))(a1) # (N, 240, 1, 256)
     
     a1 = Reshape((240, 256))(a1) # (N, 240, 256)
     
@@ -168,7 +168,7 @@ def run_func(func, x, batch_size):
 
 # Recognize and write probabilites. 
 def recognize(args, at_bool, sed_bool):
-    (te_x, _, te_na_list) = load_hdf5_data(args.te_hdf5_path, verbose=1)
+    (te_x, _, te_na_list) = load_hdf5_data(args.hdf5_path, verbose=1)
     x = te_x
     na_list = te_na_list
     
@@ -227,6 +227,13 @@ def get_stat(args, at_bool, sed_bool):
     max_len = cfg.max_len
     threshold_array = [0.3] * len(labels)
 
+    if args.eval:
+        weak_gt_csv = "meta_data/groundtruth_weak_label_evaluation_set.csv"
+        strong_gt_csv="meta_data/groundtruth_strong_label_evaluation_set.csv"
+    else:
+        weak_gt_csv="meta_data/groundtruth_weak_label_testing_set.csv"
+        strong_gt_csv="meta_data/groundtruth_strong_label_testing_set.csv"
+
     # Calculate AT stat
     if at_bool:
         prediction_probability_matrix_csv_path = os.path.join(args.pred_dir, "at_prob_mat.csv.gz")
@@ -234,7 +241,7 @@ def get_stat(args, at_bool, sed_bool):
         audio_tagging_submission_path = os.path.join(args.submission_dir, "at_submission.csv")
         
         audio_tagging_evaluator = evaluate.AudioTaggingEvaluate(
-            weak_gt_csv="meta_data/groundtruth_weak_label_testing_set.csv", 
+            weak_gt_csv=weak_gt_csv, 
             labels=labels)
         
         at_stat = audio_tagging_evaluator.get_stats_from_probability_matrix_csv(
@@ -260,7 +267,7 @@ def get_stat(args, at_bool, sed_bool):
         sed_submission_path = os.path.join(args.submission_dir, "sed_submission.csv")
         
         sed_evaluator = evaluate.SoundEventDetectionEvaluate(
-            strong_gt_csv="meta_data/groundtruth_strong_label_testing_set.csv", 
+            strong_gt_csv=strong_gt_csv, 
             lbs=labels,
             step_sec=step_time_in_sec, 
             max_len=max_len)
@@ -296,7 +303,7 @@ if __name__ == '__main__':
     parser_train.add_argument('--out_model_dir', type=str)
     
     parser_recognize = subparsers.add_parser('recognize')
-    parser_recognize.add_argument('--te_hdf5_path', type=str)
+    parser_recognize.add_argument('--hdf5_path', type=str)
     parser_recognize.add_argument('--scaler_path', type=str)
     parser_recognize.add_argument('--model_dir', type=str)
     parser_recognize.add_argument('--out_dir', type=str)
@@ -305,6 +312,7 @@ if __name__ == '__main__':
     parser_get_stat.add_argument('--pred_dir', type=str)
     parser_get_stat.add_argument('--stat_dir', type=str)
     parser_get_stat.add_argument('--submission_dir', type=str)
+    parser_get_stat.add_argument('--eval', type=bool)
     
     args = parser.parse_args()
     

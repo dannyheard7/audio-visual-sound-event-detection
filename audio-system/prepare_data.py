@@ -181,7 +181,7 @@ def pack_features_to_hdf5(audio_feature_dir, video_feature_dir, csv_path, out_pa
                 if not os.path.isfile(feature_path) or not os.path.isfile(video_feature_path):
                     print("File %s is in the csv file but the feature is not extracted!" % filename)
                 else:
-                    na_all.append(filename + ".wav")
+                    na_all.append(filename[1:] + ".wav")
                     x_audio = pickle.load(open(feature_path, 'rb'))
                     x_audio = pad_trunc_seq(x_audio, max_len)
 
@@ -268,7 +268,7 @@ def load_hdf5_data(hdf5_path, verbose=1):
         
     return x, y, na_list
 
-def calculate_scaler(hdf5_train_path, hdf5_test_path, out_path):
+def calculate_scaler(hdf5_train_path, hdf5_test_path, hdf_eval_path, out_path):
     """Calculate scaler of input data on each frequency bin. 
     
     Args:
@@ -319,6 +319,15 @@ def calculate_scaler(hdf5_train_path, hdf5_test_path, out_path):
 
         te_data['x'][count:i, :, :64] = do_scale(te_data['x'][count:i, :, :64], scaler, verbose=1)
         count += batch_size
+
+    ev_data = h5py.File(hdf5_eval_path, 'r+')
+    count = 0
+    for i in range(batch_size, ev_data['x'].shape[0] + batch_size, batch_size):
+        if i >= ev_data['x'].shape[0]:
+            i = ev_data['x'].shape[0] -1
+
+        ev_data['x'][count:i, :, :64] = do_scale(ev_data['x'][count:i, :, :64], scaler, verbose=1)
+        count += batch_size
     
 def do_scale(x3d, scaler, verbose=1):
     """Do scale on the input sequence data. 
@@ -359,6 +368,7 @@ if __name__ == '__main__':
     parser_cs = subparsers.add_parser('calculate_scaler')
     parser_cs.add_argument('--hdf5_train_path', type=str)
     parser_cs.add_argument('--hdf5_test_path', type=str)
+    parser_cs.add_argument('--hdf5_eval_path', type=str)
     parser_cs.add_argument('--out_path', type=str)
 
     args = parser.parse_args()
@@ -375,6 +385,7 @@ if __name__ == '__main__':
     elif args.mode == 'calculate_scaler':
         calculate_scaler(hdf5_train_path=args.hdf5_train_path, 
                         hdf5_test_path=args.hdf5_test_path,
+                        hdf5_eval_path=args.hdf5_eval_path,
                          out_path=args.out_path)
     else:
         raise Exception("Incorrect argument!")
