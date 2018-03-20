@@ -268,7 +268,7 @@ def load_hdf5_data(hdf5_path, verbose=1):
         
     return x, y, na_list
 
-def calculate_scaler(hdf5_train_path, hdf5_test_path, hdf_eval_path, out_path):
+def calculate_scaler(hdf5_train_path, hdf5_test_path, hdf5_eval_path, out_path):
     """Calculate scaler of input data on each frequency bin. 
     
     Args:
