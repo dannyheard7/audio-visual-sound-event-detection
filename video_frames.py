@@ -132,23 +132,6 @@ def save_video_frames(videos_location, output_folder, data_csv_file):
                 take_frame_from_middle(video_info, video_path, frame_output_folder)
 
 
-def fine_tune_inception(frames_folder, data_csv_file, model_dir):
-    class_labels = meta.load_sound_event_classes()
-    videos_by_classes = meta.load_videos_info_by_class(data_csv_file)
-
-    base_model = InceptionV3(weights='imagenet', include_top=False)
-
-    top_layers_checkpoint_path = model_dir + 'cp.top.best.hdf5'
-    fine_tuned_checkpoint_path = model_dir + 'cp.fine_tuned.best.hdf5'
-    new_extended_inception_weights = model_dir + 'final_weights.hdf5'
-
-    train_data_dir = frames_folder + '/training'
-    validation_data_dir = frames_folder + 'testing'
-
-
-
-
-
 def dimensionality_reduction(data, num_dims_to_keep):
     mean = np.mean(data, axis=0)
     centered_data = data - mean
