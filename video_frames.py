@@ -14,7 +14,7 @@ import meta
 def take_frame_from_start(video_path, output_folder):
     frame_filename = os.path.join(output_folder, FileIO.get_frame_filename(video_path, "start", config.video_frames_extension))
 
-    ffmpeg_string = "ffmpeg -i {}  -ss 00:00:00.1 -vframes 1 {}".format(video_path, frame_filename)
+    ffmpeg_string = 'ffmpeg -i {}  -ss 00:00:00.1 -vframes 1 "{}"'.format(video_path, frame_filename)
     os.system(ffmpeg_string)
 
     return frame_filename
@@ -25,7 +25,7 @@ def take_frame_from_middle(video_info, video_path, output_folder):
 
     middle_location = str((float(video_info[2]) - float(video_info[1])) / 2)
     
-    ffmpeg_string = "ffmpeg -i {}  -ss 00:00:0{} -vframes 1 {}".format(video_path, middle_location, frame_filename)
+    ffmpeg_string = 'ffmpeg -i {}  -ss 00:00:0{} -vframes 1 "{}"'.format(video_path, middle_location, frame_filename)
     os.system(ffmpeg_string)
 
     return frame_filename
@@ -39,7 +39,7 @@ def take_frame_from_end(video_info, video_path, output_folder):
     if not end_location.startswith("10."):
         end_location = "0" + end_location
         
-    ffmpeg_string = "ffmpeg -i {}  -ss 00:00:{} -vframes 1 {}".format(video_path, end_location, frame_filename)
+    ffmpeg_string = 'ffmpeg -i {}  -ss 00:00:{} -vframes 1 "{}"'.format(video_path, end_location, frame_filename)
     os.system(ffmpeg_string)
 
     return frame_filename
@@ -52,7 +52,7 @@ def take_n_equal_spaced_frames(num_frames, video_info, video_path, output_folder
     video_length = float(video_info[2]) - float(video_info[1])
     fps = num_frames / video_length
 
-    ffmpeg_string = "ffmpeg -i {} -vf fps={} {}".format(video_path, fps, frame_filename)
+    ffmpeg_string = 'ffmpeg -i {} -vf fps={} "{}"'.format(video_path, fps, frame_filename)
     os.system(ffmpeg_string)
 
     filenames = []
@@ -127,8 +127,9 @@ def save_video_frames(videos_location, output_folder, data_csv_file):
             video_path = os.path.join(videos_location, video_filename)
 
             frame_output_folder = os.path.join(output_folder, class_name)
-
-            if os.path.exists(video_path):
+            frame_filename = os.path.join(frame_output_folder, FileIO.get_frame_filename(video_path, "middle",  config.video_frames_extension))
+            print(frame_filename, os.path.exists(frame_filename))
+            if os.path.exists(video_path) and not os.path.exists(frame_filename) :
                 take_frame_from_middle(video_info, video_path, frame_output_folder)
 
 

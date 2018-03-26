@@ -16,14 +16,16 @@ def fine_tune_inception(frames_folder, model_dir):
     top_layers_checkpoint_path = os.path.join(model_dir, 'cp.top.best.hdf5')
     fine_tuned_checkpoint_path = os.path.join(model_dir, 'cp.fine_tuned.best.hdf5')
     new_extended_inception_weights = os.path.join(model_dir, 'final_weights.hdf5')
-
+    
+    print(top_layers_checkpoint_path)
+    
     train_data_dir = os.path.join(frames_folder, 'training')
     validation_data_dir = os.path.join(frames_folder, 'testing')
     img_width, img_height = 299, 299
     nb_train_samples = 41497
     nb_validation_samples = 396
 
-    top_epochs = 50
+    top_epochs = 10
     fit_epochs = 50
     batch_size = 24
 
@@ -50,34 +52,30 @@ def fine_tune_inception(frames_folder, model_dir):
 
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
-    # x = Dense(1024, activation='relu')(x) # let's add a fully-connected layer
+    x = Dense(1024, activation='relu')(x) # let's add a fully-connected layer
     predictions = Dense(17, activation='softmax')(x) # and a logistic layer -- we have 17 classes
 
     # this is the model we will train
     model = Model(input=base_model.input, output=predictions)
 
-    if not os.path.exists(fine_tuned_checkpoint_path):
-
-        if os.path.exists(top_layers_checkpoint_path):
-            model.load_weights(top_layers_checkpoint_path)
-            print ("Checkpoint '" + top_layers_checkpoint_path + "' loaded.")
-
+    if not os.path.exists(top_layers_checkpoint_path):
         # first: train only the top layers (which were randomly initialized) i.e. freeze all convolutional InceptionV3 layers
         for layer in base_model.layers:
             layer.trainable = False
 
-        model = multi_gpu_model(model, gpus=3)
+        #model = multi_gpu_model(model, gpus=3)
 
-        model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'], )
+        model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
 
-        mc_top = ModelCheckpoint(top_layers_checkpoint_path, monitor='val_acc', verbose=0, save_best_only=True,
+        mc_top = ModelCheckpoint(top_layers_checkpoint_path, monitor='val_acc', verbose=1, save_best_only=True,
                              save_weights_only=False, mode='auto', period=1)
 
         model.fit_generator(train_generator, steps_per_epoch=nb_train_samples // batch_size, epochs=top_epochs,
                             validation_data=validation_generator, validation_steps=nb_validation_samples // batch_size, callbacks=[mc_top])
 
-    #for i, layer in enumerate(base_model.layers):
-        #print(i, layer.name)
+    else:
+        model.load_weights(top_layers_checkpoint_path)        
+        print ("Checkpoint '" + top_layers_checkpoint_path + "' loaded.")
 
     if os.path.exists(fine_tuned_checkpoint_path):
         model.load_weights(fine_tuned_checkpoint_path)
@@ -89,9 +87,9 @@ def fine_tune_inception(frames_folder, model_dir):
     for layer in model.layers[172:]:
         layer.trainable = True
 
-    model = multi_gpu_model(model, gpus=3)
+    #multi_model = multi_gpu_model(model, gpus=3)
     # we need to recompile the model for these modifications to take effect. we use SGD with a low learning rate
-    model.compile(optimizer=SGD(lr=0.0001, momentum=0.9), loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=SGD(lr=0.0001, momentum=0.9), loss='binary_crossentropy', metrics=['accuracy'])
 
     # Save the model after every epoch.
     mc_fit = ModelCheckpoint(fine_tuned_checkpoint_path, monitor='val_acc', verbose=0, save_best_only=True,

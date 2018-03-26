@@ -13,16 +13,16 @@ import config
 import meta
 
 
-def plot_preds_by_class(videos_location, output_folder, data_csv_file):
+def plot_preds_by_class(model_path, videos_location, output_folder, data_csv_file):
     import video_frames
-    from keras.applications import InceptionV3
+    from keras.models import load_model
     from keras.applications.imagenet_utils import decode_predictions
 
     FileIO.create_folder(output_folder)
 
     class_labels = meta.load_sound_event_classes()
     videos_by_classes = meta.load_videos_info_by_class(data_csv_file)
-    model = InceptionV3(weights='imagenet')
+    model = load_model(model_path)
     class_predictions = collections.defaultdict(lambda: collections.defaultdict(int))
     num_frames = 3
 
@@ -85,12 +85,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest='mode')
 
-    subparsers.add_parser('predict')
+    parser_predict = subparsers.add_parser('predict')
+    parser_predict.add_argument('--model_path', type=str)
+
     subparsers.add_parser('plot-predictions')
     args = parser.parse_args()
 
     if args.mode == 'predict':
-        plot_preds_by_class(config.video_training_data_location, config.video_training_frames_location,
+        plot_preds_by_class(args.model_path, config.video_training_data_location, config.video_training_frames_location,
                             config.training_data_csv_file)
     elif args.mode == 'plot-predictions':
         plot_on_graph("predictions.pkl", "predictions-bar-chart3.png")
