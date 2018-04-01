@@ -93,7 +93,7 @@ def create_model(num_classes, data_shape):
     
     a1 = Conv2D(256, (3, 3), padding="same", activation="relu", use_bias=True)(a1)
     print(a1._keras_shape)
-    a1 = MaxPooling2D(pool_size=(1,5))(a1) # (N, 240, 1, 256)
+    a1 = MaxPooling2D(pool_size=(1,6))(a1) # (N, 240, 1, 256)
     
     a1 = Reshape((240, 256))(a1) # (N, 240, 256)
     
@@ -313,6 +313,7 @@ if __name__ == '__main__':
     parser_get_stat.add_argument('--stat_dir', type=str)
     parser_get_stat.add_argument('--submission_dir', type=str)
     parser_get_stat.add_argument('--eval', type=bool)
+    parser_get_stat.add_argument('--sed', type=bool)
     
     args = parser.parse_args()
     
@@ -321,6 +322,6 @@ if __name__ == '__main__':
     elif args.mode == 'recognize':
         recognize(args, at_bool=True, sed_bool=True)
     elif args.mode == 'get_stat':
-        get_stat(args, at_bool=True, sed_bool=True)
+        get_stat(args, at_bool=True, sed_bool=args.sed)
     else:
         raise Exception("Incorrect argument!")

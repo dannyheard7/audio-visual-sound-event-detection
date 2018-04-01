@@ -10,7 +10,7 @@ import csv
 import os
 import gzip
 
-from evaluation.vad import vad
+from .vad import vad
 
 
 def create_folder(fd):

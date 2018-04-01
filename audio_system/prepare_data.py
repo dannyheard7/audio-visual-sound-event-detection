@@ -186,6 +186,7 @@ def pack_features_to_hdf5(audio_feature_dir, video_feature_dir, csv_path, out_pa
                     x_audio = pad_trunc_seq(x_audio, max_len)
 
                     x_video = pickle.load(open(video_feature_path, 'rb')).repeat(240, 0) # Height needs to be 240 like frequency
+                    print("video shape {}".format(x_video.shape))
                     x = np.hstack((x_audio, x_video))
                     
                     x_dset[-1] = x.astype(np.float32)

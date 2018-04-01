@@ -23,3 +23,8 @@ evaluation_data_csv_file = "metadata/evaluation_set.csv"
 
 num_components_to_keep = 32
 
+labels = ['Train horn', 'Air horn, truck horn', 'Car alarm', 'Reversing beeps',
+       'Bicycle', 'Skateboard', 'Ambulance (siren)',
+       'Fire engine, fire truck (siren)', 'Civil defense siren',
+       'Police car (siren)', 'Screaming', 'Car', 'Car passing by', 'Bus',
+       'Truck', 'Motorcycle', 'Train']

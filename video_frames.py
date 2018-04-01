@@ -95,7 +95,7 @@ def get_video_frame_features(videos_location, output_folder, data_csv_file):
         frame_features_path = os.path.join(features_output_path, os.path.splitext(video_filename)[0]) + ".pkl"
 
         if os.path.exists(video_path) and not os.path.exists(frame_features_path):
-            frame_filename = take_frame_from_start(video_path, output_folder)
+            frame_filename = take_frame_from_middle(video_info, video_path, output_folder)
 
             if os.path.exists(frame_filename):
                 predictions = extract_image_features(model, frame_filename)
@@ -116,7 +116,7 @@ def get_video_frame_features(videos_location, output_folder, data_csv_file):
         pickle.dump(preds, open(frame_features_path, 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
 
 
-def save_video_frames(videos_location, output_folder, data_csv_file):
+def save_video_frames_by_class(videos_location, output_folder, data_csv_file):
     class_labels = meta.load_sound_event_classes()
     videos_by_classes = meta.load_videos_info_by_class(data_csv_file)
 
@@ -128,9 +128,21 @@ def save_video_frames(videos_location, output_folder, data_csv_file):
 
             frame_output_folder = os.path.join(output_folder, class_name)
             frame_filename = os.path.join(frame_output_folder, FileIO.get_frame_filename(video_path, "middle",  config.video_frames_extension))
-            print(frame_filename, os.path.exists(frame_filename))
+
             if os.path.exists(video_path) and not os.path.exists(frame_filename) :
                 take_frame_from_middle(video_info, video_path, frame_output_folder)
+
+
+def save_video_frames(videos_location, output_folder, data_csv_file):
+    FileIO.create_folder(output_folder)
+    videos_info = FileIO.load_csv_as_list(data_csv_file)
+
+    for video_info in videos_info:
+        video_filename = FileIO.get_video_filename(video_info[0], video_info[1], video_info[2], config.video_file_extension)
+        video_path = os.path.join(videos_location, video_filename)
+
+        if os.path.exists(video_path):
+            take_frame_from_middle(video_info, video_path, output_folder)
 
 
 def dimensionality_reduction(data, num_dims_to_keep):
@@ -157,6 +169,11 @@ if __name__ == "__main__":
     parser_get_frames.add_argument('--frames_location', type=str)
     parser_get_frames.add_argument('--csv_file', type=str)
 
+    parser_get_frames = subparsers.add_parser("save_frames_by_class")
+    parser_get_frames.add_argument('--videos_location', type=str)
+    parser_get_frames.add_argument('--frames_location', type=str)
+    parser_get_frames.add_argument('--csv_file', type=str)
+
     parser_get_frames = subparsers.add_parser("save_frames")
     parser_get_frames.add_argument('--videos_location', type=str)
     parser_get_frames.add_argument('--frames_location', type=str)
@@ -166,5 +183,7 @@ if __name__ == "__main__":
 
     if args.mode == 'get_features':
         get_video_frame_features(args.videos_location, args.frames_location, args.csv_file)
+    elif args.mode == 'save_frames_by_class':
+        save_video_frames_by_class(args.videos_location, args.frames_location, args.csv_file)
     elif args.mode == 'save_frames':
         save_video_frames(args.videos_location, args.frames_location, args.csv_file)
