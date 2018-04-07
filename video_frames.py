@@ -155,7 +155,7 @@ def dimensionality_reduction(data, num_dims_to_keep):
     eigenvectors = eigenvectors[:, p]  # Sort eigenvectors by corresponding eignenvalue
 
     principal_components = eigenvectors[:, :num_dims_to_keep]
-    reduced_data = data.dot(principal_components)
+    reduced_data = centered_data.dot(principal_components)
 
     return reduced_data
 

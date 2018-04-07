@@ -89,11 +89,11 @@ def create_model(num_classes, data_shape):
     
     a1 = block(a1)
     a1 = block(a1)
-    a1 = MaxPooling2D(pool_size=(1, 2))(a1) # (N, 240, 4, 128) # Should these be 2,2 like the diagram?
+    a1 = MaxPooling2D(pool_size=(1, 3))(a1) # (N, 240, 4, 128) # Should these be 2,2 like the diagram?
     
     a1 = Conv2D(256, (3, 3), padding="same", activation="relu", use_bias=True)(a1)
     print(a1._keras_shape)
-    a1 = MaxPooling2D(pool_size=(1,6))(a1) # (N, 240, 1, 256)
+    a1 = MaxPooling2D(pool_size=(1,4))(a1) # (N, 240, 1, 256)
     
     a1 = Reshape((240, 256))(a1) # (N, 240, 256)
     
