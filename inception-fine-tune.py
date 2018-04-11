@@ -59,7 +59,7 @@ def weighted_categorical_crossentropy(weights):
 
 def fine_tune_inception(frames_folder, model_dir):
     base_model = InceptionV3(weights='imagenet', include_top=False)
-
+    base_model.summary()
     top_layers_checkpoint_path = os.path.join(model_dir, 'cp.top.best.hdf5')
     fine_tuned_checkpoint_path = os.path.join(model_dir, 'cp.fine_tuned.best.hdf5')
     new_extended_inception_weights = os.path.join(model_dir, 'final_weights.hdf5')
@@ -76,7 +76,7 @@ def fine_tune_inception(frames_folder, model_dir):
 
     top_epochs = 10
     fit_epochs = 65
-    batch_size = 50
+    batch_size = 64
 
     # prepare data augmentation configuration
     train_datagen = ImageDataGenerator(
@@ -104,11 +104,11 @@ def fine_tune_inception(frames_folder, model_dir):
 
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
-    x = BatchNormalization()(x)
+#    x = BatchNormalization()(x)
 #    x = Dropout(0.8)(x)
     x = Dense(1024, activation='relu')(x) # let's add a fully-connected layer
     x = BatchNormalization()(x)
-    x = Dropout(0.8)(x)
+    x = Dropout(0.5)(x)
     predictions = Dense(17, activation='softmax')(x) # and a logistic layer -- we have 17 classes
 
     # this is the model we will train

@@ -85,11 +85,11 @@ def create_model(num_classes, data_shape):
     
     a1 = block(a1)
     a1 = block(a1)
-    a1 = MaxPooling2D(pool_size=(1, 2))(a1) # (N, 240, 8, 128)
+    a1 = MaxPooling2D(pool_size=(1, 3))(a1) # (N, 240, 8, 128)
     
     a1 = block(a1)
     a1 = block(a1)
-    a1 = MaxPooling2D(pool_size=(1, 3))(a1) # (N, 240, 4, 128) # Should these be 2,2 like the diagram?
+    a1 = MaxPooling2D(pool_size=(1, 2))(a1) # (N, 240, 4, 128) # Should these be 2,2 like the diagram?
     
     a1 = Conv2D(256, (3, 3), padding="same", activation="relu", use_bias=True)(a1)
     print(a1._keras_shape)
@@ -143,13 +143,15 @@ def train(args):
                                  save_weights_only=False,
                                  mode='auto',
                                  period=1)  
+    num_examples = 41498
+    batch_size = 8
 
     # Data generator
-    gen = RatioDataGenerator(batch_size=44, type='train')
+    gen = RatioDataGenerator(batch_size=batch_size, type='train')
 
     # Train
     model.fit_generator(generator=gen.generate(tr_data), 
-                        steps_per_epoch=100,    # 100 iters is called an 'epoch'
+                        steps_per_epoch=5.5*100,    # 100 iters is called an 'epoch'
                         epochs=31,              # Maximum 'epoch' to train - With larger dataset loss increased after epoch 28
                         verbose=1, 
                         callbacks=[save_model], 
@@ -207,7 +209,7 @@ def recognize(args, at_bool, sed_bool):
         io_task4.at_write_prob_mat_to_csv(
             na_list=na_list, 
             prob_mat=fusion_at, 
-            out_path=os.path.join(args.out_dir, "at_prob_mat.csv.gz"))
+            out_path=os.path.join(args.out_dir, "at_audio_prob_mat.csv.gz"))
     
     # Write out SED probabilites
     if sed_bool:
@@ -236,7 +238,7 @@ def get_stat(args, at_bool, sed_bool):
 
     # Calculate AT stat
     if at_bool:
-        prediction_probability_matrix_csv_path = os.path.join(args.pred_dir, "at_prob_mat.csv.gz")
+        prediction_probability_matrix_csv_path = os.path.join(args.pred_dir, "at_audio_prob_mat.csv.gz")
         audio_tagging_stat_path = os.path.join(args.stat_dir, "at_stat.csv")
         audio_tagging_submission_path = os.path.join(args.submission_dir, "at_submission.csv")
         

@@ -9,7 +9,7 @@ import meta
 
 def create_folder(folder):
     if not os.path.exists(folder):
-        os.makedirs(folder)
+        os.makedirs(folder, exist_ok=True)
 
 
 def get_video_filename(video_id, start_time, end_time, video_extension):

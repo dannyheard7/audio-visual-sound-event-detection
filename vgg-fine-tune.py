@@ -104,11 +104,9 @@ def fine_tune_inception(frames_folder, model_dir):
 
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
-    x = Dropout(0.8)(x)
-    x = Dense(1024, activation='relu', name='fc1')(x)
-    x = Dropout(0.8)(x)
-    x = Dense(1024, activation='relu', name='fc2')(x)
-    x = Dropout(0.8)(x)
+    x = Dense(1024, activation='relu')(x)
+    x = BatchNormalization()(x)
+    x = Dropout(0.5)(x)
     predictions = Dense(17, activation='softmax')(x) # and a logistic layer -- we have 17 classes
 
     # this is the model we will train
