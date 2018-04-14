@@ -112,8 +112,8 @@ def create_model(num_classes, data_shape):
     
     # Compile model
     model.compile(loss='binary_crossentropy',
-                  optimizer='adam',
-                  metrics=['accuracy'])
+                  optimizer = 'adam',
+                  metrics = ['accuracy'])
 
     return model
 
@@ -178,7 +178,7 @@ def recognize(args, at_bool, sed_bool):
     
     fusion_at_list = []
     fusion_sed_list = []
-    for epoch in range(20, 30, 1):
+    for epoch in range(25, 30, 1):
         t1 = time.time()
 
         file_name = os.path.join(args.model_dir, "*.%02d-0.*.hdf5" % epoch)
@@ -209,7 +209,7 @@ def recognize(args, at_bool, sed_bool):
         io_task4.at_write_prob_mat_to_csv(
             na_list=na_list, 
             prob_mat=fusion_at, 
-            out_path=os.path.join(args.out_dir, "at_audio_prob_mat.csv.gz"))
+            out_path=args.out_dir) # "at_audio_prob_mat.csv.gz"
     
     # Write out SED probabilites
     if sed_bool:
@@ -301,12 +301,10 @@ if __name__ == '__main__':
     parser_train = subparsers.add_parser('train')
     parser_train.add_argument('--tr_hdf5_path', type=str)
     parser_train.add_argument('--te_hdf5_path', type=str)
-    parser_train.add_argument('--scaler_path', type=str)
     parser_train.add_argument('--out_model_dir', type=str)
     
     parser_recognize = subparsers.add_parser('recognize')
     parser_recognize.add_argument('--hdf5_path', type=str)
-    parser_recognize.add_argument('--scaler_path', type=str)
     parser_recognize.add_argument('--model_dir', type=str)
     parser_recognize.add_argument('--out_dir', type=str)
     
@@ -322,8 +320,8 @@ if __name__ == '__main__':
     if args.mode == 'train':
         train(args)
     elif args.mode == 'recognize':
-        recognize(args, at_bool=True, sed_bool=True)
+        recognize(args, at_bool=True, sed_bool=False)
     elif args.mode == 'get_stat':
-        get_stat(args, at_bool=True, sed_bool=args.sed)
+        get_stat(args, at_bool=True, sed_bool=False)
     else:
         raise Exception("Incorrect argument!")
