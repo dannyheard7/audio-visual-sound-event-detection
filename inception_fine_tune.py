@@ -1,11 +1,12 @@
 import argparse
 import os
+from itertools import cycle, chain, repeat
 
 import numpy as np
 from keras import Model
 from keras.applications import InceptionV3, VGG16
 from keras.callbacks import ModelCheckpoint
-from keras.layers import Dense, GlobalAveragePooling2D, K, Dropout
+from keras.layers import Dense, GlobalAveragePooling2D, Dropout
 from keras.layers.normalization import BatchNormalization
 from keras.models import load_model
 from keras.optimizers import SGD
@@ -14,51 +15,38 @@ from sklearn.utils import compute_class_weight
 
 import config
 import meta
+from FileIO import create_folder
 from audio_system.evaluation import io_task4
 
 
-def weighted_categorical_crossentropy(weights):
-    """
-    A weighted version of keras.objectives.categorical_crossentropy
+def grouper(n, iterable, padvalue=None):
+    g = cycle(zip(*[chain(iterable, repeat(padvalue, n - 1))] * n))
+    for batch in g:
+        yield list(filter(None, batch))
 
-    Variables:
-        weights: numpy array of shape (C,) where C is the number of classes
 
-    Usage:
-        weights = np.array([0.5,2,10]) # Class one at 0.5, class 2 twice the normal weights, class 3 10x.
-        loss = weighted_categorical_crossentropy(weights)
-        model.compile(loss=loss,optimizer='adam')
-    """
-
-    weights = K.variable(weights)
-
-    def loss(y_true, y_pred):
-        # scale predictions so that the class probas of each sample sum to 1
-        y_pred /= K.sum(y_pred, axis=-1, keepdims=True)
-        # clip to prevent NaN's and Inf's
-        y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
-        # calc
-        loss = y_true * K.log(y_pred) * weights
-        loss = -K.sum(loss, -1)
-        return loss
-
-    return loss
+def multilabel_flow(path_to_data, image_datagen, targets, batch_size=256, target_size=(299, 299), sub_folder='training-all'):
+    gen = image_datagen.flow_from_directory(path_to_data, batch_size=batch_size, target_size=target_size, classes=[sub_folder],
+                                            shuffle=False)
+    names_generator = grouper(batch_size, gen.filenames)
+    for (X_batch, _), names in zip(gen, names_generator):
+        Y_batch = [targets[n.split('/')[-1]] for n in names]
+        Y_batch = np.vstack(Y_batch)
+        yield X_batch, Y_batch
 
 
 def fine_tune_inception(frames_folder, model_dir):
     base_model = InceptionV3(weights='imagenet', include_top=False)
     top_layers_checkpoint_path = os.path.join(model_dir, 'cp.top.best.hdf5')
     fine_tuned_checkpoint_path = os.path.join(model_dir, 'cp.fine_tuned.best.hdf5')
-    
-    train_data_dir = os.path.join(frames_folder, 'training')
-    validation_data_dir = os.path.join(frames_folder, 'testing')
+    create_folder(model_dir)
+
     img_width, img_height = 299, 299
     nb_train_samples = 41497 
     nb_validation_samples = 396
 
     labels = meta.get_train_labels_list()
     class_weights = compute_class_weight('balanced', np.unique(labels), labels)
-    wcc = weighted_categorical_crossentropy(class_weights)
 
     top_epochs = 10
     fit_epochs = 65
@@ -76,17 +64,14 @@ def fine_tune_inception(frames_folder, model_dir):
 
     test_datagen = ImageDataGenerator(rescale=1. / 255)
 
-    train_generator = train_datagen.flow_from_directory(
-        train_data_dir,
-        target_size=(img_height, img_width),
-        batch_size=batch_size,
-        class_mode='categorical')
+    train_labels = meta.get_images_labels("metadata/training_set.csv")
+    test_labels = meta.get_images_labels("metadata/testing_set.csv")
 
-    validation_generator = test_datagen.flow_from_directory(
-        validation_data_dir,
-        target_size=(img_height, img_width),
-        batch_size=batch_size,
-        class_mode='categorical')
+    train_generator = multilabel_flow(frames_folder, train_datagen, train_labels, batch_size=batch_size, target_size=(img_height, img_width),
+                                      sub_folder='training-all')
+
+    validation_generator = multilabel_flow(frames_folder, test_datagen, test_labels, batch_size=batch_size, target_size=(img_height, img_width),
+                                           sub_folder='testing-all')
 
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
@@ -113,7 +98,7 @@ def fine_tune_inception(frames_folder, model_dir):
 
         model.fit_generator(train_generator, steps_per_epoch=nb_train_samples // batch_size, epochs=top_epochs,
                             validation_data=validation_generator, validation_steps=nb_validation_samples // batch_size,
-                            callbacks=[mc_top])
+                            callbacks=[mc_top], class_weight=class_weights)
 
     model.load_weights(top_layers_checkpoint_path)        
     print ("Checkpoint '" + top_layers_checkpoint_path + "' loaded.")
@@ -142,7 +127,8 @@ def fine_tune_inception(frames_folder, model_dir):
         epochs=fit_epochs,
         validation_data=validation_generator,
         validation_steps=nb_validation_samples // batch_size,
-        callbacks=[mc_fit])
+        callbacks=[mc_fit],
+        class_weight=class_weights)
 
 
 def fine_tune_vgg(frames_folder, model_dir):
@@ -151,8 +137,6 @@ def fine_tune_vgg(frames_folder, model_dir):
     top_layers_checkpoint_path = os.path.join(model_dir, 'cp.top.best.hdf5')
     fine_tuned_checkpoint_path = os.path.join(model_dir, 'cp.fine_tuned.best.hdf5')
 
-    train_data_dir = os.path.join(frames_folder, 'training')
-    validation_data_dir = os.path.join(frames_folder, 'testing')
     img_width, img_height = 224, 224
     nb_train_samples = 45450
     nb_validation_samples = 494
@@ -176,17 +160,16 @@ def fine_tune_vgg(frames_folder, model_dir):
 
     test_datagen = ImageDataGenerator(rescale=1. / 255)
 
-    train_generator = train_datagen.flow_from_directory(
-        train_data_dir,
-        target_size=(img_height, img_width),
-        batch_size=batch_size,
-        class_mode='categorical')
+    train_labels = meta.get_images_labels("metadata/training_set.csv")
+    test_labels = meta.get_images_labels("metadata/testing_set.csv")
 
-    validation_generator = test_datagen.flow_from_directory(
-        validation_data_dir,
-        target_size=(img_height, img_width),
-        batch_size=batch_size,
-        class_mode='categorical')
+    train_generator = multilabel_flow(frames_folder, train_datagen, train_labels, batch_size=batch_size,
+                                      target_size=(img_height, img_width),
+                                      sub_folder='training-all')
+
+    validation_generator = multilabel_flow(frames_folder, test_datagen, test_labels, batch_size=batch_size,
+                                           target_size=(img_height, img_width),
+                                           sub_folder='testing-all')
 
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
@@ -248,11 +231,7 @@ def recognize(args):
     frame_dir = args.frame_dir
     model_path = args.model_path
     
-    labels = meta.get_train_labels_list()
-    class_weights = compute_class_weight('balanced', np.unique(labels), labels)
-    wcc = weighted_categorical_crossentropy(class_weights)
-    
-    model = load_model(model_path, custom_objects={'loss': wcc}) # Audio tagging
+    model = load_model(model_path) # Audio tagging
 
     na_list = []
 
@@ -274,8 +253,6 @@ def recognize(args):
         na = na[1:na.rfind("_")] + ".wav"
         na_list.append(na)
 
-    # Write out AT probabilities
-    #fusion_at = np.mean(np.array(fusion_at_list), axis=0)
     print("AT shape: %s" % (fusion_at.shape,))
     na_list = [x.encode('utf-8') for x in na_list]
     

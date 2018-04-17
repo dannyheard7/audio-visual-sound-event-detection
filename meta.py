@@ -5,7 +5,7 @@ import FileIO
 import re
 
 import config
-
+import numpy as np
 
 def load_sound_event_classes():
     df = pd.read_csv("metadata/sound_event_class_list.csv")
@@ -52,6 +52,26 @@ def get_labels(filenames, csv_file):
 
     labels_list = sorted(labels_list, key=lambda x: filenames.index(x[0]))
     labels_list = [labels for filename, labels in labels_list]
+
+    return labels_list
+
+
+def get_images_labels(csv_file):
+    dataset = FileIO.load_csv_as_list(csv_file)
+    labels_list = {}
+    sorted_labels = sorted(config.labels, key=str.lower)
+
+    for row in dataset:
+        video_id = row[0]
+        full_filename = "Y" + video_id + "_" + row[1] + "_" + row[2] + "_middle.png"
+
+        video_class_labels = re.findall('[A-Z][^A-Z]*', row[3])
+        video_class_labels = [x[:-1] if x.endswith(",") else x for x in video_class_labels]
+
+        video_class_labels = [1 if label in video_class_labels else 0 for label in sorted_labels]
+
+        # These need to be a list of 1s/0s, 1 if the file has the class at that index or 0 otherwise
+        labels_list[full_filename] = np.asarray(video_class_labels)
 
     return labels_list
 
