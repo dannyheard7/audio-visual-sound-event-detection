@@ -1,12 +1,13 @@
 import argparse
 import os
+from functools import partial, update_wrapper
 from itertools import cycle, chain, repeat
 
 import numpy as np
 from keras import Model
 from keras.applications import InceptionV3, VGG16
 from keras.callbacks import ModelCheckpoint
-from keras.layers import Dense, GlobalAveragePooling2D, Dropout
+from keras.layers import Dense, GlobalAveragePooling2D, Dropout, K
 from keras.layers.normalization import BatchNormalization
 from keras.models import load_model
 from keras.optimizers import SGD
@@ -91,9 +92,9 @@ def fine_tune_inception(frames_folder, model_dir):
             layer.trainable = False
 
         #model = multi_gpu_model(model, gpus=3)
-        model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
+        model.compile(optimizer='rmsprop', loss='binary_crossentropy', weighted_metrics=['acc'])
 
-        mc_top = ModelCheckpoint(top_layers_checkpoint_path, monitor='val_loss', verbose=1, save_best_only=True,
+        mc_top = ModelCheckpoint(top_layers_checkpoint_path, monitor='val_weighted_acc', verbose=1, save_best_only=True,
                              save_weights_only=False, mode='auto', period=1)
 
         model.fit_generator(train_generator, steps_per_epoch=nb_train_samples // batch_size, epochs=top_epochs,
@@ -108,16 +109,16 @@ def fine_tune_inception(frames_folder, model_dir):
         print("Checkpoint '" + fine_tuned_checkpoint_path + "' loaded.")
 
     # we chose to train the top 2 inception blocks, i.e. we will freeze the first 172 layers and unfreeze the rest:
-    for layer in model.layers[:163]:
+    for layer in model.layers[:172]:
         layer.trainable = False
-    for layer in model.layers[163:]:
+    for layer in model.layers[172:]:
         layer.trainable = True
 
     # we need to recompile the model for these modifications to take effect. we use SGD with a low learning rate
-    model.compile(optimizer=SGD(lr=0.0001, momentum=0.9), loss='binary_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=SGD(lr=0.0001, momentum=0.9), loss='binary_crossentropy', weighted_metrics=['acc'])
 
     # Save the model after every epoch.
-    mc_fit = ModelCheckpoint(fine_tuned_checkpoint_path, monitor='val_loss', verbose=1, save_best_only=True,
+    mc_fit = ModelCheckpoint(fine_tuned_checkpoint_path, monitor='val_weighted_acc', verbose=1, save_best_only=True,
                              save_weights_only=False, mode='auto', period=1)
 
     # we train our model again (this time fine-tuning the top 2 inception blocks alongside the top Dense layers
