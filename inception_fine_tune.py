@@ -78,12 +78,15 @@ def fine_tune_inception(frames_folder, model_dir):
     x = GlobalAveragePooling2D()(x)
     x = BatchNormalization()(x)
     x = Dropout(0.5)(x)
-    x = Dense(1024, activation='relu')(x) # let's add a fully-connected layer
+    x = Dense(2048, activation='tanh')(x) # let's add a fully-connected layer
     x = BatchNormalization()(x)
     x = Dropout(0.5)(x)
-    x = Dense(102, activation='relu')(x) # let's add a fully-connected layer
+    x = Dense(1024, activation='tanh')(x) # let's add a fully-connected layer
     x = BatchNormalization()(x)
     x = Dropout(0.5)(x)
+   # x = Dense(64, activation='tanh')(x) # let's add a fully-connected layer
+   # x = BatchNormalization()(x)
+   # x = Dropout(0.5)(x)
     predictions = Dense(17, activation='sigmoid')(x) # and a logistic layer -- we have 17 classes
 
     # this is the model we will train

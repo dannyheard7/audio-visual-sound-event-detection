@@ -227,7 +227,7 @@ def get_stat(args, at_bool, sed_bool):
     labels = cfg.lbs
     step_time_in_sec = cfg.step_time_in_sec
     max_len = cfg.max_len
-    threshold_array = [0.3] * len(labels)
+    threshold_array = [0.35] * len(labels)
 
     if args.eval:
         weak_gt_csv = "meta_data/groundtruth_weak_label_evaluation_set.csv"
