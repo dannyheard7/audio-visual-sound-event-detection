@@ -14,7 +14,6 @@ from FileIO import create_folder
 from audio_system.data_generator import RatioDataGenerator
 from audio_system.evaluation import io_task4
 from audio_system.evaluation.io_task4 import at_read_prob_mat_csv
-from inception_fine_tune import weighted_categorical_crossentropy
 
 
 def reorder_matrices(file_list1, prob_mat1, file_list2, prob_mat2):
@@ -120,8 +119,6 @@ def train_integration_layer(audio_train_outputs, audio_test_ouputs, visual_train
     batch_size = 32
     epochs = 50
 
-    sample_weights = [sum([class_weights[i] for i,x in enumerate(labels) if x == 1]) for labels in train_labels]
-
     create_folder(os.path.dirname(model_path))
     mc_top = ModelCheckpoint(model_path, monitor='val_loss', verbose=1, save_best_only=True,
                              save_weights_only=False, mode='auto', period=1)
@@ -135,7 +132,7 @@ def train_integration_layer(audio_train_outputs, audio_test_ouputs, visual_train
                         epochs=epochs,
                         verbose=1,
                         callbacks=[mc_top],
-                        validation_data=(test_predictions_matrix, test_labels, sample_weights),
+                        validation_data=(test_predictions_matrix, test_labels),
                         class_weight=class_weights)
 
 

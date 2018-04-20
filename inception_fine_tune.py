@@ -77,24 +77,27 @@ def fine_tune_inception(frames_folder, model_dir):
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
     x = BatchNormalization()(x)
-    x = Dropout(0.8)(x)
+    x = Dropout(0.5)(x)
     x = Dense(1024, activation='relu')(x) # let's add a fully-connected layer
     x = BatchNormalization()(x)
-    x = Dropout(0.8)(x)
+    x = Dropout(0.5)(x)
+    x = Dense(102, activation='relu')(x) # let's add a fully-connected layer
+    x = BatchNormalization()(x)
+    x = Dropout(0.5)(x)
     predictions = Dense(17, activation='sigmoid')(x) # and a logistic layer -- we have 17 classes
 
     # this is the model we will train
     model = Model(input=base_model.input, output=predictions)
-
+    
     if not os.path.exists(top_layers_checkpoint_path):
         # first: train only the top layers (which were randomly initialized) i.e. freeze all convolutional InceptionV3 layers
         for layer in base_model.layers:
             layer.trainable = False
 
         #model = multi_gpu_model(model, gpus=3)
-        model.compile(optimizer='rmsprop', loss='binary_crossentropy', weighted_metrics=['acc'])
+        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['acc'])
 
-        mc_top = ModelCheckpoint(top_layers_checkpoint_path, monitor='val_weighted_acc', verbose=1, save_best_only=True,
+        mc_top = ModelCheckpoint(top_layers_checkpoint_path, monitor='val_loss', verbose=1, save_best_only=True,
                              save_weights_only=False, mode='auto', period=1)
 
         model.fit_generator(train_generator, steps_per_epoch=nb_train_samples // batch_size, epochs=top_epochs,
@@ -115,10 +118,10 @@ def fine_tune_inception(frames_folder, model_dir):
         layer.trainable = True
 
     # we need to recompile the model for these modifications to take effect. we use SGD with a low learning rate
-    model.compile(optimizer=SGD(lr=0.0001, momentum=0.9), loss='binary_crossentropy', weighted_metrics=['acc'])
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['acc'])
 
     # Save the model after every epoch.
-    mc_fit = ModelCheckpoint(fine_tuned_checkpoint_path, monitor='val_weighted_acc', verbose=1, save_best_only=True,
+    mc_fit = ModelCheckpoint(fine_tuned_checkpoint_path, monitor='val_loss', verbose=1, save_best_only=True,
                              save_weights_only=False, mode='auto', period=1)
 
     # we train our model again (this time fine-tuning the top 2 inception blocks alongside the top Dense layers
